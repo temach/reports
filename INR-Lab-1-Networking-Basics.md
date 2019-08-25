@@ -135,7 +135,7 @@ Screenshot of the console prompt from ubuntu cloud guest.
 
 Easy to setup in GNS3, but it bypasses the TCP/IP stack of the host machine. This means that when the GNS3 guest is using the wire the host can not use it at the same time. This causes difficult to track down connectivity issues for both guest and host. (for example pinging google.com from the host and the guest at the same time is impossible. Ethernet cloud connection is uncomfourtable to use, because normally one  wants to access the network from the host and from the guest simultaneously).
 
-First of all I changed the netplan configuration inside the ubuntu cloud guest to match the network setup of the host. 
+First of all I changed the netplan configuration inside the ubuntu cloud guest to match the network setup of the host. Source: https://www.howtoforge.com/linux-basics-set-a-static-ip-on-ubuntu
 
 Screenshot of the ubuntu cloud network config.
 ![](https://i.imgur.com/HFCoxG9.png)
@@ -154,16 +154,20 @@ Screenshot of the resulting topology created in GNS3 to test the Ethernet cloud 
 
 #### 2. TAP Cloud connection
 
-This works by creating a fake device at the Ethernet level (layer 2). This requiers extra setup on the host, however personally I found this very easy to setup.
+Tap device is used on the host to receive data from the guest. Quite easy to setup.
 
 I created the TAP interface on the host using the NetworkManager CLI as described in this source: https://mail.gnome.org/archives/networkmanager-list/2016-January/msg00049.html
 
 Screenshot showing the configuration of the TAP interface on the host.
 ![](https://i.imgur.com/ijlpzps.png)
 
-To test this connection I created a new GNS3 project. I was extremely  unsatisfied with UbuntuCloud guest, so I diverged from the rules and experimented with using AlpineLinux and KaliLinux as a guest. Eventually I setteled on the KaliLinux guest. Therefore this type of connection was tested with the KaliLinux guest.
+To test this connection I created a new GNS3 project.
+I was extremely  unsatisfied with UbuntuCloud guest, so I diverged from the rules and experimented with using AlpineLinux and KaliLinux as a guest. Eventually I setteled on the KaliLinux guest.
+Therefore this type of connection was tested with the KaliLinux guest.
 
-(I found KaliLinux guest to be by a long shot better than the Ubuntu guest. First of all kali uses the familiar ifupdown and /etc/network/interfaces instead of netplan, second the kali appliance by default uses the VNC connection, I believe there are more benefits to be discovered. A serious downside is that kali must be installed by hand on each machine in the lab, which takes time and harddrive space - 9.6GB for base install with X server.)
+(I found KaliLinux guest to be by a long shot better than the Ubuntu guest.
+First of all kali uses the familiar ifupdown and /etc/network/interfaces instead of netplan, second the kali appliance by default uses the VNC connection, I believe there are more benefits to be discovered.
+A serious downside is that kali must be installed by hand on each machine in the lab, which takes time and harddrive space - 9.6GB for base install with X server.)
 
 The next step was creating a kali guest in GNS3 and configuring its network and default gateway to suit the TAP interface on the host.
 
@@ -180,11 +184,14 @@ $ cat /proc/sys/net/ipv4/ip_forward
 ```
 source: http://www.ducea.com/2006/08/01/how-to-enable-ip-forwarding-in-linux/
 
-The last step was to set the host to act as a NAT for the traffic leaving the kali guest. This was done with the command:
+The last step was to set the host to act as a NAT for the traffic leaving the kali guest.
+This was done with the command:
 ```
 sudo iptables -t nat -A POSTROUTING -s 255.255.255.0/24 -o eth0 -j MASQUERADE
 ```
-The command means take traffic with source ip in the 255.255.255.0/24 subnet and send it to eth0 interface after applying NAT. Source: https://openvpn.net/community-resources/how-to/#routing-all-client-traffic-including-web-traffic-through-the-vpn. Thus the traffic can go from the 255.255.255.0/24 subnet to the Internet and return. Communication from the host to the guest is also possible because of the last routing rule in the output:
+The command means take traffic with source ip in the 255.255.255.0/24 subnet and send it to eth0 interface after applying NAT.
+Source: https://openvpn.net/community-resources/how-to/#routing-all-client-traffic-including-web-traffic-through-the-vpn.
+Thus the traffic can go from the 255.255.255.0/24 subnet to the Internet and return. Communication from the host to the guest is also possible because of the last routing rule in the output:
 ```
 $ ip route
 default via 188.130.155.33 dev eno1 onlink 
@@ -205,8 +212,49 @@ Screenshot showing pings from the host to the kali guest, from the kali guest to
 
 This appears to be similar to how docker operates (https://www.securitynik.com/2016/12/docker-networking-internals-how-docker_16.html). To allow communication between guest and host a virtual bridge is used. Nat is used to allow connection to the internet. 
 
-To setup the bridge on the host I followed the in depth article: https://cloudbuilder.in/blogs/2013/12/08/tap-interfaces-linux-bridge/
+To setup the bridge on the host I followed two in depth articles:
+1. Overview of linux bridging: https://cloudbuilder.in/blogs/2013/12/08/tap-interfaces-linux-bridge/
+2. Creating a bridge: https://cloudbuilder.in/blogs/2013/12/02/linux-bridge-virtual-networking/
 
-
+Decided to reuse the bridge that already existed on the host: virtbr0.
+This bridge was created by installing libvirt. It can be configured
+with
+```
+$ virsh net-edit default
+```
 source: https://www.bernhard-ehlers.de/blog/2017/07/11/gns3-cloud-linux.html
 
+Just following along with the default configuration, as shown on the screenshot below:
+![](https://i.imgur.com/15wDHuU.png)
+
+The next step editing configuration of the GNS3 cloud to use virbr0 as its Ethernet interface. To be able to select the non-physical interface the box "Show special Ethernet interfaces" had to be ticked. Screenshot of configuration for the cloud is below.
+![](https://i.imgur.com/pgazhp5.png)
+
+After that connection inside the kali guest started working. 
+The ip allocation on the side of kali guest was done automatically because libvirt provides DHCP.
+The screenshot below shows that the kali guest connect to the virbr0 bridge by a newly created virtual interface "gns3tap0-2".
+![](https://i.imgur.com/bg8exam.png)
+
+The bridge does not have a physical interface connected to it, however traffic flow and NAT is handled by iptable rules.
+```
+$ sudo iptables -t nat -vnL POSTROUTING
+Chain POSTROUTING (policy ACCEPT 17296 packets, 1089K bytes)
+ pkts bytes target     prot opt in     out     source               destination         
+   60  5281 RETURN     all  --  *      *       192.168.122.0/24     224.0.0.0/24        
+    0     0 RETURN     all  --  *      *       192.168.122.0/24     255.255.255.255     
+    3   180 MASQUERADE  tcp  --  *      *       192.168.122.0/24    !192.168.122.0/24     masq ports: 1024-65535
+    7   532 MASQUERADE  udp  --  *      *       192.168.122.0/24    !192.168.122.0/24     masq ports: 1024-65535
+    2   168 MASQUERADE  all  --  *      *       192.168.122.0/24    !192.168.122.0/24 
+```
+source: https://stackoverflow.com/questions/37536687/what-is-the-relation-between-docker0-and-eth0
+
+Screenshow of ping working in kali guest.
+![](https://i.imgur.com/YVOFBS0.png)
+
+Screenshot of the topology created in GNS3.
+![](https://i.imgur.com/1yRojYi.png)
+
+## Task 2 - Switching
+
+To create this topology I used a pair of KaliLinux CLI guests (without X server installed).
+The first step step was to setup the cloud connection
