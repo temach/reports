@@ -1,6 +1,10 @@
 # INR Lab 1 - Networking Basics
 #### Artem Abramov SNE19
 
+May I suggest viewing this document in your browser at address: 
+https://github.com/temach/innopolis_university_reports/blob/master/INR-Lab-1-Networking-Basics.md
+Unfortunatelly rendering the document to PDF breaks some long lines and crops images.
+
 ## Task 1 - Tools
 
 ### 1. Install the needed dependencies for GNS3: QEMU/KVM , Docker , and Wireshark
