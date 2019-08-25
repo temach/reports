@@ -617,15 +617,22 @@ so there is nothing to change here.
 Checking their network connectivity from Admin by pingin Web and google.com:
 ![](https://i.imgur.com/bepE0J8.png)
 
+Checking connectivity from the Worker machine is below.
+![](https://i.imgur.com/mP7LCIM.png)
+
 
 #### 7. Configure port forwarding for http and ssh to Web and Admin respectively.
 
-We use two rules:
+We use two rules, one for Web (http port 80) and one for Admin (ssh port 22):
 ```
 # iptables -t nat -A PREROUTING -i eth2 -p tcp --dport 80 -j DNAT --to-destination 192.168.250.243
-# iptables -t nat -A POSTROUTING -o eth0 -p tcp --dport 80 -d 192.168.250.243 -j SNAT --to-source 192.168.250.241
+# iptables -t nat -A PREROUTING -i eth2 -p tcp --dport 22 -j DNAT --to-destination 192.168.250.242
 ```
 source: https://www.digitalocean.com/community/tutorials/how-to-forward-ports-through-a-linux-gateway-with-iptables and https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/4/html/Security_Guide/s1-firewall-ipt-fwd.html.
+
+Because we have NAT enabled, the traffic can not enter. So the rules just allow the traffic to enter and push it to a certain machine on the network. 
+When that machine answers it will reply to the external ip address which was supplied in the 
+packet. 
 
 Check the NAT table:
 ```
@@ -633,6 +640,7 @@ Check the NAT table:
 Chain PREROUTING (policy ACCEPT)
 target     prot opt source               destination         
 DNAT       tcp  --  anywhere             anywhere             tcp dpt:http to:192.168.250.243
+DNAT       tcp  --  anywhere             anywhere             tcp dpt:ssh to:192.168.250.242
 
 Chain INPUT (policy ACCEPT)
 target     prot opt source               destination         
@@ -642,15 +650,19 @@ target     prot opt source               destination
 
 Chain POSTROUTING (policy ACCEPT)
 target     prot opt source               destination         
-SNAT       tcp  --  anywhere             192.168.250.243      tcp dpt:http to:192.168.250.241
+MASQUERADE  all  --  10.0.250.240/28      anywhere            
+MASQUERADE  all  --  192.168.250.240/28   anywhere 
 ```
-
 
 #### 8. Check that you can ssh to the Admin and access your web page from the outside.
 
-Testing this is impossible while the cloud bridge uses a NAT of itself.
-The first step to testing the forwarding rules is disabling the NAT in cloud bridge and leaving only the NAT in the Gateway machine.
+Successfull retrival of webpage from the Web host is shown below.
+![](https://i.imgur.com/cMno51o.png)
 
-The steps to create a new virtual network bridge with libvirt were already
-described earlier, so they will not be repeated.
-The configuration for this network is.
+For the ssh to work, first we must either PermitRootLogin on the remote server and then loging with as a root user with root password or we can create a non-root user.
+Creating a dummy user is shown below.
+![](https://i.imgur.com/D2O5d8W.png)
+
+Then we can login to ssh from the host and retrieve the webpage from inside the network.
+![](https://i.imgur.com/VMN4ujk.png)
+
