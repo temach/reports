@@ -246,7 +246,7 @@ Chain POSTROUTING (policy ACCEPT 17296 packets, 1089K bytes)
     7   532 MASQUERADE  udp  --  *      *       192.168.122.0/24    !192.168.122.0/24     masq ports: 1024-65535
     2   168 MASQUERADE  all  --  *      *       192.168.122.0/24    !192.168.122.0/24 
 ```
-source: https://stackoverflow.com/questions/37536687/what-is-the-relation-between-docker0-and-eth0
+source: https://stackoverflow.com/questions/37536687/what-is-the-relation-between-docker0-and-eth0 (and https://serverfault.com/questions/891208/why-is-a-physical-interface-not-part-of-the-docker-gwbridge)
 
 Screenshow of ping working in kali guest.
 ![](https://i.imgur.com/YVOFBS0.png)
@@ -256,5 +256,254 @@ Screenshot of the topology created in GNS3.
 
 ## Task 2 - Switching
 
-To create this topology I used a pair of KaliLinux CLI guests (without X server installed).
-The first step step was to setup the cloud connection
+To create this topology I used a pair of KaliLinux CLI guests (without X server installed). A slight problem was that the default appliance file suplied with GNS3 has been referencing a non-existent docker tag "gns3/kalilinux:v2". The appliance file was modified to reference the latest docker image "gns3/kalilinux:latest" located at https://hub.docker.com/r/gns3/kalilinux/tags. After this the KaliLinux CLI applience was created successfully.
+
+#### 1. Make the following network topology:
+The first step step was to setup the cloud connection. For this I used a bridged network with NAT as suggested by the diagram.
+
+Screenshot of the initial topology created in GNS3.
+![](https://i.imgur.com/MSgpqDf.png)
+
+Screenshot of configuration for the cloud is below.
+![](https://i.imgur.com/Cm22b7O.png)
+
+Screenshot of configuration for the switch. Unused slots were deleted.
+![](https://i.imgur.com/FVxrGvf.png)
+
+Screenshot showing the joining of different appliances is below.
+![](https://i.imgur.com/mBQDXGF.png)
+
+
+#### 2. Install openssh-server on both VMs and nginx web server on the Web VM
+
+The first step was to setup the Web kali guest. The Admin kali guest would be setup analoguously. 
+
+On startup the kali guest did not get an IP address assigned.
+The first step to getting internet connectivity was to allow the DHCP for the eth0 interface in order to get the IP address. Screenshot of /etc/network/interfaces is below, the lines concerning DHCP on eth0 are uncommented.
+![](https://i.imgur.com/ALiwagj.png)
+
+After the config was modified the interface was successfully brought up with ifup:
+```
+root@Web:/# ifup eth0
+Internet Systems Consortium DHCP Client 4.3.5
+Copyright 2004-2016 Internet Systems Consortium.
+All rights reserved.
+For info, please visit https://www.isc.org/software/dhcp/
+
+Listening on LPF/eth0/4a:18:68:55:bd:99
+Sending on   LPF/eth0/4a:18:68:55:bd:99
+Sending on   Socket/fallback
+DHCPDISCOVER on eth0 to 255.255.255.255 port 67 interval 7
+DHCPREQUEST of 192.168.122.142 on eth0 to 255.255.255.255 port 67
+DHCPOFFER of 192.168.122.142 from 192.168.122.1
+DHCPACK of 192.168.122.142 from 192.168.122.1
+bound to 192.168.122.142 -- renewal in 1768 seconds.
+```
+
+Then nginx and openssh server were installed.
+
+```
+# apt-get update && apt-get install openssh-server nginx
+```
+
+For ease of access from remote machines I decided to enable root login in ssh daemon. The following line was added to /etc/ssh/sshd_config:
+```
+PermitRootLogin yes
+```
+
+The init system used on the kali linux guest is sys-v. 
+By the default Kali policy ssh and nginx init scripts were left disabled.
+Enabling ssh and nginx services on system startup:
+```
+# update-rc.d ssh enable && service ssh start
+# update-rc.d nginx enable && service nginx start
+```
+source: https://www.debuntu.org/how-to-managing-services-with-update-rc-d/
+
+Next step was testing that nginx server is up and serves a Welcome page:
+```
+# curl 127.0.0.1:80
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+```
+
+Finally the steps to setup openssh server were repeated on the Admin kali guest.
+
+
+Here a problem arises because the KaliLinux CLI image uses docker containers. Docker containers are not persistent by default and GNS3 does NOT support automatically handling them persistently. Therefore it has to be done manually. To make a container persistent the "docker commit" command can be used. 
+source: https://www.bernhard-ehlers.de/blog/2017/07/05/gns3-modify-docker-base-image.html
+
+List all docker containers and make a new image from one of the changed containers:
+```
+$ sudo docker container ls
+CONTAINER ID        IMAGE                   COMMAND                  CREATED             STATUS              PORTS               NAMES
+364c57b19c74        gns3/kalilinux:latest   "/gns3/init.sh /bin/…"   24 minutes ago      Up 24 minutes                           great_hopper
+1afd45f63cbd        gns3/kalilinux:latest   "/gns3/init.sh /bin/…"   24 minutes ago      Up 15 minutes                           amazing_visvesvaraya
+
+$ sudo docker commit 1afd45f63cbd kali-lab1-task1-web
+sha256:80aececdbdb3e04ffbb9a5c0480fc8a4f168335d976a6e6ef861f1d62dfe6a87
+```
+source: https://thenewstack.io/container-basics-how-to-commit-changes-to-a-docker-image/
+
+Then easily import the new image into GNS3. Source: https://docs.gns3.com/14EmmKdryY3FiMOQEclSyHQ3MUlycDGE_DwNPC8L4GIc/index.html.
+First choose "New appliance template". 
+
+Select new Docker container as shown in the screenshot below.
+![](https://i.imgur.com/ohG35D9.png)
+
+Select one of the newly created docker containers present on your system as show in the screenshot below.
+![](https://i.imgur.com/T7lf5tt.png)
+
+This actually has to be done only once and its best done when creating the appliance for the first time. If done at the time of appliance creation, then subsequent updates to the container will require only to run the "docker commit" with the container ID and the same image name. The image will be overwritten with new container state. To make it even easier you can use "docker rename" to give meaningful names to containers.
+
+
+#### 3 Questions.
+
+##### What is the IP of the mask corresponding to /28 ?
+
+The question refers to quat notation. The netmask of /28 = 255.255.255.240
+
+##### How many machines can you configure under this subnet?
+
+16 - 2 = 14 machines
+
+##### What would be their IPs?
+
+From xxx.xxx.xxx.241 to xxx.xxx.xxx.254.
+
+#### 4. Configure the VMs with private static IPs under a /28 subnet.
+
+Creating a bridged with static addresses is best done by using libvirt.
+If using libvirt is impossible the same steps can be performed without it: https://jamielinux.com/docs/libvirt-networking-handbook/custom-nat-based-network.html.
+
+The documentation for libvirt, basic commnands and explanations can be found in official wiki: https://wiki.libvirt.org/page/Networking.
+By default, libvirt uses config for a virtual network named "default". The details vary by distribution but on Ubuntu this default network is configured as:
+
+1. A Linux bridge named virbr0 with IP address 192.168.122.1/24
+2. A dnsmasq process (DHCP) on the virbr0 interface that hands out IP addresses in the range 192.168.122.2-192.168.122.254
+3. A set of iptables rules for NAT
+
+Its important to understand what a bridge in Linux actually is: https://web.archive.org/web/20071018021348/http://linux-net.osdl.org/index.php/Bridge. (a switch with some peculiarities)
+
+For some reason slight tweaks to the "default" network such as disabling DHCP brake its functionallity somehow. Therefore a new network must be created, that would be independent of the "default" provided by libvirt.
+```
+virsh net-dumpxml default > lab1net.xml
+```
+
+Edit the config file. Details of the XML configuration syntax can be found at https://libvirt.org/formatnetwork.html.
+
+Must make sure that `<forwarding>` uses `nat` mode. In this case the ip 
+address specified in `<ip>` tag will become the default gateway router that 
+will NAT the traffic from local network to the outside. Finally DHCP can be
+enabled or disabled. For this task it should be disabled as the ip
+addresses will be statically assigned. Note that the DHCP server is disabled by default and that many tags can be
+omitted, such as UUID and MAC address, as they will be autogenerated.
+
+
+(In case `<forwarding>` uses `routing` mode then the virtual network will be directly bridged to the physical LAN, source https://wiki.debian.org/BridgeNetworkConnections and https://jamielinux.com/docs/libvirt-networking-handbook/bridged-network.html). 
+
+Edit lab1net.xml to have the content as on the screenshot below.
+![](https://i.imgur.com/ZyRagCQ.png)
+
+A network must then be created from the definition.
+```
+$ virsh net-create lab1net.xml
+```
+
+Then the network can be started.
+```
+$ virsh net-start lab1net
+```
+
+Check that the network is running.
+```
+$ virsh net-list
+ Name                 State      Autostart     Persistent
+----------------------------------------------------------
+ default              active     yes           yes
+ lab1net              active     no            yes
+```
+
+If you later need to change some network parameters remember to destroy and 
+start the network for your changes to have an effect.
+```
+virst net-destroy lab1net && virsh net-start lab1net
+```
+
+Check the libvirt lab1net network configuration.
+It must resempble the config as shown below, after the autogenerated fields have been added.
+![](https://i.imgur.com/Kg9lMrJ.png)
+
+The next step is to reconfigure the cloud appliance in GNS3 to use the new
+network. Press the "Refresh" button in GUI to have the virbrlab1 show up
+as an option. Configuration screenshow is below. 
+![](https://i.imgur.com/sMh5TLV.png)
+
+
+Then give each VM its personal static ip address by specifying it in /etc/network/interfaces. Screenshot is below.
+![](https://i.imgur.com/NGSBraf.png)
+
+
+The configuration can be activated with `ifdown eth0 && ifup eth0`.
+
+The web VM has address 192.168.122.243.
+The admin VM has ip address 192.168.122.242.
+
+Check that the ip address is assigned, the ping to the internet works and
+the ping to the neighbour machine also works.
+![](https://i.imgur.com/Z87LWpP.png)
+
+(Now is a good time to commit changes to the docker images.)
+
+The resulting topology is below.
+![](https://i.imgur.com/R14F2NO.png)
+
+
+
+#### 5. Check that you have connectivity between them
+
+Ping from Admin to Web, screenshot is below.
+![](https://i.imgur.com/RlGeVQv.png)
+
+Traceroute from Admin to Web, screenshot is below.
+![](https://i.imgur.com/8IpR1aS.png)
+
+Mtr from Admin to Web, screenshot is below.
+![](https://i.imgur.com/Efx8WJQ.png)
+
+
+#### 6. Make sure your web server is accessible from the Admin VM.
+
+Retrieving nginx webpage locate at Web from Admin machine is show below.
+![](https://i.imgur.com/WLH8wtC.png)
+
+
+## Task 3
+
+My OS of choice is the KaliLinux CLI docker image. After creating the 
+gateway machine I gave it two network adapters. Screenshot is below.
+![](https://i.imgur.com/wwPNJNy.png)
+
