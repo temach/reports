@@ -497,13 +497,160 @@ Mtr from Admin to Web, screenshot is below.
 
 #### 6. Make sure your web server is accessible from the Admin VM.
 
-Retrieving nginx webpage locate at Web from Admin machine is show below.
+Retrieving nginx webpage located in the Web machine from the Admin machine is show below.
 ![](https://i.imgur.com/WLH8wtC.png)
 
 
 ## Task 3
 
+#### 1. Choose your OS and configure a template for it in GNS3.
 My OS of choice is the KaliLinux CLI docker image. After creating the 
 gateway machine I gave it two network adapters. Screenshot is below.
 ![](https://i.imgur.com/wwPNJNy.png)
 
+
+#### 2. Modify your network to look like this topology and configure the network for Internal with a subnet of the same size as the previous one
+
+The topology is shown on the screenshot below.
+![](https://i.imgur.com/uiwzzQF.png)
+
+The next step was configuring the subnet on the Internal network.
+I decided to use the 10.0.250.240/28 for the Internal network. The External network is already configured to use 192.168.250.240/28.
+
+The configuration of the gateway machine is shown below.
+![](https://i.imgur.com/GghzaUJ.png)
+
+
+To clear old ip configuration I used the following command:
+```
+# ip addr flush dev eth0
+```
+source: https://superuser.com/questions/153559/how-can-i-clear-the-ip-address-of-ethernet-interface-without-cycling-the-interfa
+
+The Worker machine was a bit different, but was configurable after reading command help in the prompt: 
+```
+>  ip 10.0.250.242/28 10.0.250.241
+Checking for duplicate address...
+PC1 : 10.0.250.242 255.255.255.240 gateway 10.0.250.241
+> ip dns 8.8.8.8
+```
+
+The resulting network configurations for all 4 machines are shown below.
+![](https://i.imgur.com/ELVyZGO.png)
+
+
+
+#### 3. Connect your gateway to a bridged interface and to the switches.
+
+The gateway is already connected to both switches. 
+The only bridged interface that is not connected is the cloud. Therefore I 
+understood this sub-task as instructing me to connect the gateway to the 
+internet via the cloud bridge.
+
+To connect the gateway to the cloud I added a third network adapter to the machine as shown in the screenshot below.
+![](https://i.imgur.com/BXqlNRE.png)
+
+Screenshot of the resulting topology is below.
+![](https://i.imgur.com/iintjyj.png)
+
+
+#### 4. Configure the IP address and enble IPv4 forwarding on the gateway.
+
+It was possible to edit the network configuration for the gateway machine 
+straight in the GNS3 gui window. I decided that the eth2 (which is 
+connected to the bridged interface) will use DHCP for ip configuration.
+Knowing that the cloud network uses the 192.168.122.0/24 setup I re-configured the gateway machine. Note that both eth0 and eth1 have the same setup for the gateway.
+
+This is shown in the screenshot below.
+![](https://i.imgur.com/4zUPvOP.png)
+
+Verify that IPv4 forwarding is enabled on the gateway machine.
+```
+# cat /proc/sys/net/ipv4/ip_forward
+1
+```
+
+#### 5. Configure NAT for the Internal and External Networks.
+
+This means applying NAT rules to the packets flowing from Internal network 
+to the internet and to the packets flowing from the External network to the 
+internet. (and of course applying reverse NAT rules to responce packets).
+
+On the gateway execute the folloing commands:
+```
+# iptables -t nat -A POSTROUTING -s 10.0.250.240/28 -o eth2 -j MASQUERADE
+# iptables -t nat -A POSTROUTING -s 192.168.250.240/28 -o eth2 -j MASQUERADE
+```
+
+Check the nat table:
+```
+# iptables --list -t nat
+Chain PREROUTING (policy ACCEPT)
+target     prot opt source               destination         
+
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination         
+
+Chain OUTPUT (policy ACCEPT)
+target     prot opt source               destination         
+
+Chain POSTROUTING (policy ACCEPT)
+target     prot opt source               destination         
+MASQUERADE  all  --  10.0.250.240/28      anywhere            
+MASQUERADE  all  --  192.168.250.240/28   anywhere  
+```
+
+Check the routing rules:
+```
+# ip route list
+default via 192.168.122.1 dev eth2 metric 258 
+10.0.250.240/28 dev eth1 proto kernel scope link src 10.0.250.241 
+192.168.122.0/24 dev eth2 proto kernel scope link src 192.168.122.161 
+192.168.250.240/28 dev eth0 proto kernel scope link src 192.168.250.241
+```
+
+#### 6. Change the gateway of Admin and Web and check their network connectivity.
+
+The gateway address has already been changed as part of the previous step, 
+so there is nothing to change here.
+
+Checking their network connectivity from Admin by pingin Web and google.com:
+![](https://i.imgur.com/bepE0J8.png)
+
+
+#### 7. Configure port forwarding for http and ssh to Web and Admin respectively.
+
+We use two rules:
+```
+# iptables -t nat -A PREROUTING -i eth2 -p tcp --dport 80 -j DNAT --to-destination 192.168.250.243
+# iptables -t nat -A POSTROUTING -o eth0 -p tcp --dport 80 -d 192.168.250.243 -j SNAT --to-source 192.168.250.241
+```
+source: https://www.digitalocean.com/community/tutorials/how-to-forward-ports-through-a-linux-gateway-with-iptables and https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/4/html/Security_Guide/s1-firewall-ipt-fwd.html.
+
+Check the NAT table:
+```
+# iptables --list -t nat
+Chain PREROUTING (policy ACCEPT)
+target     prot opt source               destination         
+DNAT       tcp  --  anywhere             anywhere             tcp dpt:http to:192.168.250.243
+
+Chain INPUT (policy ACCEPT)
+target     prot opt source               destination         
+
+Chain OUTPUT (policy ACCEPT)
+target     prot opt source               destination         
+
+Chain POSTROUTING (policy ACCEPT)
+target     prot opt source               destination         
+SNAT       tcp  --  anywhere             192.168.250.243      tcp dpt:http to:192.168.250.241
+```
+
+
+#### 8. Check that you can ssh to the Admin and access your web page from the outside.
+
+Testing this is impossible while the cloud bridge uses a NAT of itself.
+The first step to testing the forwarding rules is disabling the NAT in cloud bridge and leaving only the NAT in the Gateway machine.
+
+The steps to create a new virtual network bridge with libvirt were already
+described earlier, so they will not be repeated.
+The configuration for this network is.
