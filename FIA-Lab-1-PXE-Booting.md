@@ -29,7 +29,7 @@ Screenshot of the GNS3 cloud appliance configuration is shown below.
 For reference below is a screenshot showing the version of KaliLinux guest that was used for this lab.
 ![](https://i.imgur.com/8ORez1h.png)
 
-With everything ready its now important to understand what is PXE and the details of how it works. In my opinion the best overview is presented in the official document that describes PXE, source: http://www.pix.net/software/pxeboot/archive/pxespec.pdf
+With everything ready its now important to understand what is PXE and the details of how it works. In my opinion the best overview is presented in the document that describes PXE, source: http://www.pix.net/software/pxeboot/archive/pxespec.pdf
 
 To setup the PXE service I plan to use two packages: dnsmasq for DHCP+TFTP and pxelinux for the PXE.
 
@@ -125,8 +125,62 @@ This time the boot was successfull and the welcoming screen was displayed!
 Below is the screenshot of the welcoming screen.
 ![](https://i.imgur.com/xzqykHO.png)
 
+Net installer uses a menu as show on the screenshot below.
+![](https://i.imgur.com/chPQuNv.png)
+
 
 ## Task 2 - Questions
 
 ### 1. What is UEFI PXE booting? How does it work? How does it compare to booting from the hard disk or a CD?
 
+UEFI PXE booting refers to booting over PXE by clients that use UEFI instead of Legacy BIOS. UEFI PXE differs from legacy PXE in that the client uses UEFI module to interact with the PXE server. If the client uses legacy BIOS then the code to interact with the PXE server would normally be provided as a Network Interface Card (NIC) BIOS extension. The PXE server does not care to which type of client the service is provided. However to handle both types of clients the server must provide a binary to execute on a legacy BIOS client (such as pxelinux) and an alternative binary (such as elilo) to execute on UEFI clients. The clients will themselves decide which binary they need.
+
+PXE booting works as show in the diagram below:
+![](https://i.imgur.com/QRwhow4.png)
+
+The booting machine tries to discover services using the DHCP protocol. The server responds with a DHCP packet that contains extra information about pxe booting. The client can use this information to access the TFTP server. 
+After downloading the files from TFTP server and veryfying them, the client can execute them to start the boot or install process.
+
+Compared to booting from a CD or HardDrive the PXE has several advantages. First of all it does not require any physical installation media, beyound thouse that are likely to be present in any computer anyway (network card).
+Secondly it allows to remotely controll the installion of an operating system on a machine.
+
+source: https://web.archive.org/web/20131102003141/http://download.intel.com/design/archives/wfm/downloads/pxespec.pdf
+
+
+
+### 2. What is a GPT? What is its layout? What is the role of a partition table?
+
+GPT is the modern alternative to MBR. A specification describing how to divide disk into partitions and to keep track of the partition table. GPT also removes some of the limitations of MBR, such as a much higher limit on partition size, limit of on the number of partitions. GPT also keeps a dublicate partition table on disk that can be used for recovery (unlike MBR).
+
+Below is a diagram of an example disk that is using GPT.
+
+![](https://i.imgur.com/t3xOXhB.png)
+
+The layout can be described as follows:
+
+1. First 512 bytes are left untouched to allow compatiability with legacy boot BIOS.
+2. Then follows the header for the GPT table.
+3. Then follow the entries in the GPT table. Each entry describes a partition.
+4. After the end of the table, there is space to place the actual partitions.
+5. Finally at the end of the storage medium, the GPT partition table is duplicated.
+
+The partition table describes how the storage medium is divided into logical blocks and what special attributes does each block hold. This is of primary importance to tools that work at the operating system level. Such as the bootloader, the OS itself, etc. As the attributes attached to each partition describe what such low-level tools are allowed to do with the partition (for example to check if the partition is bootable, or what filesystem is uses). For userspace programs usually the operating system abstracts the storage medium by providing the filesystem abstraction. However there are many legitimate cases when the software wants to work directly with the data on the disk, flash drive or CD. For such cases the partitions describe how the program must handle the different areas of the storage medium.
+
+### 3. What is gdisk? How does it work? What can you do with it?
+
+gdisk is a linux utility to create, modify and delete partitions and partiton table on the GPT drives. It comes pre-installed on ubuntu. It is a successor to the fdisk program, that can only work with MBR disks. The program actually comes in three flavours of user interface.
+
+1. gdisk is text-mode interactive
+2. sgdisk is command-line
+3. cgdisk has a curses-based interface
+
+gdisk is a usrespace program that accesses the underlying storage medium to manipulate the GPT partitions. You can use to manipulate the GPT partition in any way that is allowed by the UEFI specification. In particular it allows the creation of GPT disks with protectuve MBR section.
+
+source: https://www.rodsbooks.com/gdisk/walkthrough.html
+
+### 4. What is a Protective MBR and why is it in the GPT?
+
+As already outlined in the second question above the main usage for protective MBR is to allow compatiability with legacy systems and programs that do not support working with GPT partitions. This concerns USB drives that would not be functional on systems without GPT support, perhaps even more importantly this concerns the hard drives that would become unbootable when plugged into a motherboard with a BIOS that does not understand GPT partitions. 
+Itself the protective MBR is just the normal MBR partition table that makes the best effort to describe the storage medium. If the disk has for example 10 partitions that are in the GPT table, only the first 4 partitions will recorded in the MBR table.
+
+## Task 3 - Partitions
