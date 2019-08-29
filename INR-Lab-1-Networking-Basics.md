@@ -98,9 +98,12 @@ artem adm cdrom sudo dip plugdev lpadmin sambashare kvm ubridge libvirt wireshar
 ### 2. Start a GNS3 Project
 
 Summary of the GNS3 setup is below.
+
 ![](https://i.imgur.com/Q9nUeJS.png)
 
+
 Giving the project a name.
+
 ![](https://i.imgur.com/hkrXkch.png)
 
 Because the template for Ubuntu Cloud Guest was not pre-installed I had to download and configure it.  
@@ -137,7 +140,10 @@ Screenshot of the console prompt from ubuntu cloud guest.
 
 #### 1. Ethernet Cloud connection 
 
-Easy to setup in GNS3, but it bypasses the TCP/IP stack of the host machine. This means that when the GNS3 guest is using the wire the host can not use it at the same time. This causes difficult to track down connectivity issues for both guest and host. (for example pinging google.com from the host and the guest at the same time is impossible. Ethernet cloud connection is uncomfourtable to use, because normally one  wants to access the network from the host and from the guest simultaneously).
+##### Easy to setup in GNS3, but it bypasses the TCP/IP stack of the host machine, so there is no connection between the guest and the host.
+
+
+In other words this means that when the GNS3 guest is using the wire the host can not use it at the same time. This causes difficult to track down connectivity issues for both guest and host. (for example pinging google.com from the host and the guest at the same time is impossible. Ethernet cloud connection is uncomfourtable to use, because normally one  wants to access the network from the host and from the guest simultaneously).
 
 First of all I changed the netplan configuration inside the ubuntu cloud guest to match the network setup of the host. Source: https://www.howtoforge.com/linux-basics-set-a-static-ip-on-ubuntu
 
@@ -158,7 +164,7 @@ Screenshot of the resulting topology created in GNS3 to test the Ethernet cloud 
 
 #### 2. TAP Cloud connection
 
-Tap device is used on the host to receive data from the guest. Quite easy to setup.
+##### Tap device is used on the host to receive data from the guest. Quite easy to setup.
 
 I created the TAP interface on the host using the NetworkManager CLI as described in this source: https://mail.gnome.org/archives/networkmanager-list/2016-January/msg00049.html
 
@@ -189,9 +195,9 @@ $ cat /proc/sys/net/ipv4/ip_forward
 source: http://www.ducea.com/2006/08/01/how-to-enable-ip-forwarding-in-linux/
 
 The last step was to set the host to act as a NAT for the traffic leaving the kali guest.
-This was done with the command:
+This was done by running the following command on the host:
 ```
-sudo iptables -t nat -A POSTROUTING -s 255.255.255.0/24 -o eth0 -j MASQUERADE
+sudo iptables -t nat -A POSTROUTING -s 255.255.255.0/24 -o eno1 -j MASQUERADE
 ```
 The command means take traffic with source ip in the 255.255.255.0/24 subnet and send it to eth0 interface after applying NAT.
 Source: https://openvpn.net/community-resources/how-to/#routing-all-client-traffic-including-web-traffic-through-the-vpn.
@@ -214,7 +220,9 @@ Screenshot showing pings from the host to the kali guest, from the kali guest to
 
 #### 3. Linux Bridge and NAT Cloud connection 
 
-This appears to be similar to how docker operates (https://www.securitynik.com/2016/12/docker-networking-internals-how-docker_16.html). To allow communication between guest and host a virtual bridge is used. Nat is used to allow connection to the internet. 
+##### To allow communication between guest and host a virtual bridge is used, nat is used to allow connection to the internet. Very easy to setup.
+
+This appears to be similar to how docker operates (https://www.securitynik.com/2016/12/docker-networking-internals-how-docker_16.html).
 
 To setup the bridge on the host I followed two in depth articles:
 1. Overview of linux bridging: https://cloudbuilder.in/blogs/2013/12/08/tap-interfaces-linux-bridge/
@@ -670,3 +678,39 @@ Creating a dummy user is shown below.
 Then we can login to ssh from the host and retrieve the webpage from inside the network.
 ![](https://i.imgur.com/VMN4ujk.png)
 
+
+#### 9. Replace your current gateway with the OS you chose.
+
+I decided to replace the gateway with an OpenWRT router.
+
+To install it I followed the official instrucitons, source https://docs.gns3.com/appliances/openwrt.html. OpenWRT is essentially a trimmed down linux box, so configuration steps are identical to the gateway. OpenWRT provides a web interface for configuration as well as ssh access.
+
+Screenshot of the web interface.
+![](https://i.imgur.com/xZjpDKX.png)
+
+I decided to use ssh to access the router. The password is empty on first login.
+```
+$ ssh root@192.168.122.3
+The authenticity of host '192.168.122.3 (192.168.122.3)' can't be established.
+RSA key fingerprint is SHA256:G+rKufEW32FkNxUV3cox0ba0sH0q/QWm+saWPr4qZMM.
+Are you sure you want to continue connecting (yes/no)? yes           
+Warning: Permanently added '192.168.122.3' (RSA) to the list of known hosts.
+root@192.168.122.3's password:
+
+BusyBox v1.28.4 () built-in shell (ash)
+
+  _______                     ________        __
+ |       |.-----.-----.-----.|  |  |  |.----.|  |_
+ |   -   ||  _  |  -__|     ||  |  |  ||   _||   _|
+ |_______||   __|_____|__|__||________||__|  |____|
+          |__| W I R E L E S S   F R E E D O M
+ -----------------------------------------------------
+ OpenWrt 18.06.2, r7676-cddd7b4c77
+ -----------------------------------------------------
+
+root@OpenWrt:~# 
+```
+
+#### 10. What extra capabilities does your new OS give you?
+
+Compared to using Ubuntu on the gateway, OpenWRT router is easier to setup and use, because it provides a nice web interface. With the interface many of the most common tasks in networking can be configured. In Ubuntu network configuration requiers a bit of extra skills/experience. OpenWRT has a image generation program that provides the ability to create system images with preconfigured network settings. The images can then easily be installed on other routers, which is very useful when setting up a large network. OpenWRT is a GNU/Linux OS, so its possible to extend its usage beyound what was intended. 
