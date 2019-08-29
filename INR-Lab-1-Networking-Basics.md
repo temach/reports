@@ -3,7 +3,7 @@
 
 May I suggest viewing this document in your browser at address: 
 https://github.com/temach/innopolis_university_reports/blob/master/INR-Lab-1-Networking-Basics.md
-Unfortunatelly rendering the document to PDF breaks some long lines and crops images.
+Unfortunately rendering the document to PDF breaks some long lines and crops images.
 
 ## Task 1 - Tools
 
@@ -15,9 +15,9 @@ $ cat /proc/cpuinfo | egrep 'vmx'
 ```
 source: https://www.cyberciti.biz/faq/linux-xen-vmware-kvm-intel-vt-amd-v-support/
 
-Then was installing wireshark. During the install process there was a choice to create the special wireshark group or not. I choose not to create it.   
+Then was installing Wireshark. During the install process there was a choice to create the special Wireshark group or not. I choose not to create it.   
 ```
-$ sudo apt-get install wireshark-qt wieshark-doc 
+$ sudo apt-get install wireshark-qt wireshark-doc 
 ```
 
 Later I changed my mind and re-configured wireshark to create a special wireshark group by following this guide: https://code.wireshark.org/review/gitweb?p=wireshark.git;a=blob_plain;f=debian/README.Debian;hb=HEAD
@@ -130,10 +130,10 @@ To get familiar with the GNS3 interface I used the getting started instructions 
 Screenshot of the created appliance instance.
 ![](https://i.imgur.com/gEid5pc.png)
 
-The final step was to check that the ubuntu guest can start.
+The final step was to check that the Ubuntu guest can start.
 The machine indeed booted successfully and presented a login prompt. Although it spend about 30 seconds waiting for a start job on boot, the exact job description was 'A start job is running for Wait for Network to be Configured (15s / no limit)'
 
-Screenshot of the console prompt from ubuntu cloud guest.
+Screenshot of the console prompt from Ubuntu cloud guest.
 ![](https://i.imgur.com/SAchA6Q.png)
 
 ### 3. What are the different ways you can configure internet access in GNS3?
@@ -143,19 +143,19 @@ Screenshot of the console prompt from ubuntu cloud guest.
 ##### Easy to setup in GNS3, but it bypasses the TCP/IP stack of the host machine, so there is no connection between the guest and the host.
 
 
-In other words this means that when the GNS3 guest is using the wire the host can not use it at the same time. This causes difficult to track down connectivity issues for both guest and host. (for example pinging google.com from the host and the guest at the same time is impossible. Ethernet cloud connection is uncomfourtable to use, because normally one  wants to access the network from the host and from the guest simultaneously).
+In other words this means that when the GNS3 guest is using the wire the host can not use it at the same time. This causes difficult to track down connectivity issues for both guest and host. (for example pinging google.com from the host and the guest at the same time is impossible. Ethernet cloud connection is uncomfortable to use, because normally one  wants to access the network from the host and from the guest simultaneously).
 
-First of all I changed the netplan configuration inside the ubuntu cloud guest to match the network setup of the host. Source: https://www.howtoforge.com/linux-basics-set-a-static-ip-on-ubuntu
+First of all I changed the netplan configuration inside the Ubuntu cloud guest to match the network setup of the host. Source: https://www.howtoforge.com/linux-basics-set-a-static-ip-on-ubuntu
 
-Screenshot of the ubuntu cloud network config.
+Screenshot of the Ubuntu cloud network config.
 ![](https://i.imgur.com/HFCoxG9.png)
 
 After that the network still appeared to be broken. The next step to try was reverting the network configuration in GNS3 to legacy mode. This appeared to have fixed the issue.
 
-Screenshot of the GNS3 network configuration for ubuntu guest.
+Screenshot of the GNS3 network configuration for Ubuntu guest.
 ![](https://i.imgur.com/WWvyndh.png)
 
-Screenshot of successfull ping from inside the ubuntu guest.
+Screenshot of successful ping from inside the Ubuntu guest.
 ![](https://i.imgur.com/huW3YuO.png)
 
 Screenshot of the resulting topology created in GNS3 to test the Ethernet cloud connection.
@@ -166,22 +166,22 @@ Screenshot of the resulting topology created in GNS3 to test the Ethernet cloud 
 
 ##### Tap device is used on the host to receive data from the guest. Quite easy to setup.
 
-I created the TAP interface on the host using the NetworkManager CLI as described in this source: https://mail.gnome.org/archives/networkmanager-list/2016-January/msg00049.html
+I created the TAP interface on the host using the Network Manager CLI as described in this source: https://mail.gnome.org/archives/networkmanager-list/2016-January/msg00049.html
 
 Screenshot showing the configuration of the TAP interface on the host.
 ![](https://i.imgur.com/ijlpzps.png)
 
 To test this connection I created a new GNS3 project.
-I was extremely  unsatisfied with UbuntuCloud guest, so I diverged from the rules and experimented with using AlpineLinux and KaliLinux as a guest. Eventually I setteled on the KaliLinux guest.
-Therefore this type of connection was tested with the KaliLinux guest.
+I was extremely  unsatisfied with Ubuntu Cloud guest, so I diverged from the rules and experimented with using Alpine-Linux and Kali-Linux as a guest. Eventually I settled on the Kali-Linux guest.
+Therefore this type of connection was tested with the Kali-Linux guest.
 
-(I found KaliLinux guest to be by a long shot better than the Ubuntu guest.
-First of all kali uses the familiar ifupdown and /etc/network/interfaces instead of netplan, second the kali appliance by default uses the VNC connection, I believe there are more benefits to be discovered.
-A serious downside is that kali must be installed by hand on each machine in the lab, which takes time and harddrive space - 9.6GB for base install with X server.)
+(I found Kali-Linux guest to be by a long shot better than the Ubuntu guest.
+First of all Kali uses the familiar ifupdown and /etc/network/interfaces instead of netplan, second the Kali appliance by default uses the VNC connection, I believe there are more benefits to be discovered.
+A serious downside is that Kali must be installed by hand on each machine in the lab, which takes time and hard drive space - 9.6GB for base install with X server.)
 
-The next step was creating a kali guest in GNS3 and configuring its network and default gateway to suit the TAP interface on the host.
+The next step was creating a Kali guest in GNS3 and configuring its network and default gateway to suit the TAP interface on the host.
 
-Screenshot of the network configuration on the kali guest.
+Screenshot of the network configuration on the Kali guest.
 ![](https://i.imgur.com/1wjscuQ.png)
 
 Screenshot of the topology created in GNS3.
@@ -194,12 +194,12 @@ $ cat /proc/sys/net/ipv4/ip_forward
 ```
 source: http://www.ducea.com/2006/08/01/how-to-enable-ip-forwarding-in-linux/
 
-The last step was to set the host to act as a NAT for the traffic leaving the kali guest.
+The last step was to set the host to act as a NAT for the traffic leaving the Kali guest.
 This was done by running the following command on the host:
 ```
 sudo iptables -t nat -A POSTROUTING -s 255.255.255.0/24 -o eno1 -j MASQUERADE
 ```
-The command means take traffic with source ip in the 255.255.255.0/24 subnet and send it to eth0 interface after applying NAT.
+The command means take traffic with source IP in the 255.255.255.0/24 subnet and send it to eth0 interface after applying NAT.
 Source: https://openvpn.net/community-resources/how-to/#routing-all-client-traffic-including-web-traffic-through-the-vpn.
 Thus the traffic can go from the 255.255.255.0/24 subnet to the Internet and return. Communication from the host to the guest is also possible because of the last routing rule in the output:
 ```
@@ -212,20 +212,20 @@ default via 188.130.155.33 dev eno1 onlink
 255.255.255.0/24 dev tap0 proto kernel scope link src 255.255.255.100 metric 450 
 ```
 
-After the iptables rule was applied the kali guest could ping google.com and communication between the guest and the host was also possible.
+After the iptables rule was applied the Kali guest could ping google.com and communication between the guest and the host was also possible.
 
-Screenshot showing pings from the host to the kali guest, from the kali guest to the host and from the kali guest to google.com.
+Screenshot showing pings from the host to the Kali guest, from the Kali guest to the host and from the Kali guest to google.com.
 ![](https://i.imgur.com/z8CP3CH.png)
 
 
 #### 3. Linux Bridge and NAT Cloud connection 
 
-##### To allow communication between guest and host a virtual bridge is used, nat is used to allow connection to the internet. Very easy to setup.
+##### To allow communication between guest and host a virtual bridge is used, NAT is used to allow connection to the internet. Very easy to setup.
 
 This appears to be similar to how docker operates (https://www.securitynik.com/2016/12/docker-networking-internals-how-docker_16.html).
 
 To setup the bridge on the host I followed two in depth articles:
-1. Overview of linux bridging: https://cloudbuilder.in/blogs/2013/12/08/tap-interfaces-linux-bridge/
+1. Overview of Linux bridging: https://cloudbuilder.in/blogs/2013/12/08/tap-interfaces-linux-bridge/
 2. Creating a bridge: https://cloudbuilder.in/blogs/2013/12/02/linux-bridge-virtual-networking/
 
 Decided to reuse the bridge that already existed on the host: virtbr0.
@@ -242,9 +242,9 @@ Just following along with the default configuration, as shown on the screenshot 
 The next step editing configuration of the GNS3 cloud to use virbr0 as its Ethernet interface. To be able to select the non-physical interface the box "Show special Ethernet interfaces" had to be ticked. Screenshot of configuration for the cloud is below.
 ![](https://i.imgur.com/pgazhp5.png)
 
-After that connection inside the kali guest started working. 
-The ip allocation on the side of kali guest was done automatically because libvirt provides DHCP.
-The screenshot below shows that the kali guest connect to the virbr0 bridge by a newly created virtual interface "gns3tap0-2".
+After that connection inside the Kali guest started working. 
+The IP allocation on the side of Kali guest was done automatically because libvirt provides DHCP.
+The screenshot below shows that the Kali guest connect to the virbr0 bridge by a newly created virtual interface "gns3tap0-2".
 ![](https://i.imgur.com/bg8exam.png)
 
 The bridge does not have a physical interface connected to it, however traffic flow and NAT is handled by iptable rules.
@@ -260,7 +260,7 @@ Chain POSTROUTING (policy ACCEPT 17296 packets, 1089K bytes)
 ```
 source: https://stackoverflow.com/questions/37536687/what-is-the-relation-between-docker0-and-eth0 (and https://serverfault.com/questions/891208/why-is-a-physical-interface-not-part-of-the-docker-gwbridge)
 
-Screenshow of ping working in kali guest.
+Screenshot of ping working in Kali guest.
 ![](https://i.imgur.com/YVOFBS0.png)
 
 Screenshot of the topology created in GNS3.
@@ -268,7 +268,7 @@ Screenshot of the topology created in GNS3.
 
 ## Task 2 - Switching
 
-To create this topology I used a pair of KaliLinux CLI guests (without X server installed). A slight problem was that the default appliance file suplied with GNS3 has been referencing a non-existent docker tag "gns3/kalilinux:v2". The appliance file was modified to reference the latest docker image "gns3/kalilinux:latest" located at https://hub.docker.com/r/gns3/kalilinux/tags. After this the KaliLinux CLI applience was created successfully.
+To create this topology I used a pair of Kali Linux CLI guests (without X server installed). A slight problem was that the default appliance file supplied with GNS3 has been referencing a non-existent docker tag "gns3/kalilinux:v2". The appliance file was modified to reference the latest docker image "gns3/kalilinux:latest" located at https://hub.docker.com/r/gns3/kalilinux/tags. After this the Kali Linux CLI appliance was created successfully.
 
 #### 1. Make the following network topology:
 The first step step was to setup the cloud connection. For this I used a bridged network with NAT as suggested by the diagram.
@@ -288,10 +288,10 @@ Screenshot showing the joining of different appliances is below.
 
 #### 2. Install openssh-server on both VMs and nginx web server on the Web VM
 
-The first step was to setup the Web kali guest. The Admin kali guest would be setup analoguously. 
+The first step was to setup the Web Kali guest. The Admin Kali guest would be setup analogously. 
 
-On startup the kali guest did not get an IP address assigned.
-The first step to getting internet connectivity was to allow the DHCP for the eth0 interface in order to get the IP address. Screenshot of /etc/network/interfaces is below, the lines concerning DHCP on eth0 are uncommented.
+On startup the Kali guest did not get an IP address assigned.
+The first step to getting internet connectivity was to allow the DHCP for the eth0 interface in order to get the IP address. Screenshot of /etc/network/interfaces is below, the lines concerning DHCP on eth0 are not commented.
 ![](https://i.imgur.com/ALiwagj.png)
 
 After the config was modified the interface was successfully brought up with ifup:
@@ -323,7 +323,7 @@ For ease of access from remote machines I decided to enable root login in ssh da
 PermitRootLogin yes
 ```
 
-The init system used on the kali linux guest is sys-v. 
+The init system used on the Kali Linux guest is sys-v. 
 By the default Kali policy ssh and nginx init scripts were left disabled.
 Enabling ssh and nginx services on system startup:
 ```
@@ -365,7 +365,7 @@ Commercial support is available at
 Finally the steps to setup openssh server were repeated on the Admin kali guest.
 
 
-Here a problem arises because the KaliLinux CLI image uses docker containers. Docker containers are not persistent by default and GNS3 does NOT support automatically handling them persistently. Therefore it has to be done manually. To make a container persistent the "docker commit" command can be used. 
+Here a problem arises because the Kali Linux CLI image uses docker containers. Docker containers are not persistent by default and GNS3 does NOT support automatically handling them persistently. Therefore it has to be done manually. To make a container persistent the "docker commit" command can be used. 
 source: https://www.bernhard-ehlers.de/blog/2017/07/05/gns3-modify-docker-base-image.html
 
 List all docker containers and make a new image from one of the changed containers:
@@ -396,7 +396,7 @@ This actually has to be done only once and its best done when creating the appli
 
 ##### What is the IP of the mask corresponding to /28 ?
 
-The question refers to quat notation. The netmask of /28 = 255.255.255.240
+The question refers to different IP notation. The netmask of /28 = 255.255.255.240
 
 ##### How many machines can you configure under this subnet?
 
@@ -411,7 +411,7 @@ From xxx.xxx.xxx.241 to xxx.xxx.xxx.254.
 Creating a bridged with static addresses is best done by using libvirt.
 If using libvirt is impossible the same steps can be performed without it: https://jamielinux.com/docs/libvirt-networking-handbook/custom-nat-based-network.html.
 
-The documentation for libvirt, basic commnands and explanations can be found in official wiki: https://wiki.libvirt.org/page/Networking.
+The documentation for libvirt, basic commands and explanations can be found in official wiki: https://wiki.libvirt.org/page/Networking.
 By default, libvirt uses config for a virtual network named "default". The details vary by distribution but on Ubuntu this default network is configured as:
 
 1. A Linux bridge named virbr0 with IP address 192.168.122.1/24
@@ -420,19 +420,19 @@ By default, libvirt uses config for a virtual network named "default". The detai
 
 Its important to understand what a bridge in Linux actually is: https://web.archive.org/web/20071018021348/http://linux-net.osdl.org/index.php/Bridge. (a switch with some peculiarities)
 
-For some reason slight tweaks to the "default" network such as disabling DHCP brake its functionallity somehow. Therefore a new network must be created, that would be independent of the "default" provided by libvirt.
+For some reason slight tweaks to the "default" network such as disabling DHCP brake its functionality somehow. Therefore a new network must be created, that would be independent of the "default" provided by libvirt.
 ```
 virsh net-dumpxml default > lab1net.xml
 ```
 
 Edit the config file. Details of the XML configuration syntax can be found at https://libvirt.org/formatnetwork.html.
 
-Must make sure that `<forwarding>` uses `nat` mode. In this case the ip 
+Must make sure that `<forwarding>` uses `NAT` mode. In this case the ip 
 address specified in `<ip>` tag will become the default gateway router that 
 will NAT the traffic from local network to the outside. Finally DHCP can be
-enabled or disabled. For this task it should be disabled as the ip
+enabled or disabled. For this task it should be disabled as the IP
 addresses will be statically assigned. Note that the DHCP server is disabled by default and that many tags can be
-omitted, such as UUID and MAC address, as they will be autogenerated.
+omitted, such as UUID and MAC address, as they will be auto generated.
 
 
 (In case `<forwarding>` uses `routing` mode then the virtual network will be directly bridged to the physical LAN, source https://wiki.debian.org/BridgeNetworkConnections and https://jamielinux.com/docs/libvirt-networking-handbook/bridged-network.html). 
@@ -466,16 +466,16 @@ virst net-destroy lab1net && virsh net-start lab1net
 ```
 
 Check the libvirt lab1net network configuration.
-It must resempble the config as shown below, after the autogenerated fields have been added.
+It must resempble the config as shown below, after the auto generated fields have been added.
 ![](https://i.imgur.com/Kg9lMrJ.png)
 
 The next step is to reconfigure the cloud appliance in GNS3 to use the new
 network. Press the "Refresh" button in GUI to have the virbrlab1 show up
-as an option. Configuration screenshow is below. 
+as an option. Configuration screenshot is below. 
 ![](https://i.imgur.com/sMh5TLV.png)
 
 
-Then give each VM its personal static ip address by specifying it in /etc/network/interfaces. Screenshot is below.
+Then give each VM its personal static IP address by specifying it in /etc/network/interfaces. Screenshot is below.
 ![](https://i.imgur.com/NGSBraf.png)
 
 
@@ -484,7 +484,7 @@ The configuration can be activated with `ifdown eth0 && ifup eth0`.
 The web VM has address 192.168.122.243.
 The admin VM has ip address 192.168.122.242.
 
-Check that the ip address is assigned, the ping to the internet works and
+Check that the IP address is assigned, the ping to the internet works and
 the ping to the neighbour machine also works.
 ![](https://i.imgur.com/Z87LWpP.png)
 
@@ -516,7 +516,7 @@ Retrieving nginx webpage located in the Web machine from the Admin machine is sh
 ## Task 3
 
 #### 1. Choose your OS and configure a template for it in GNS3.
-My OS of choice is the KaliLinux CLI docker image. After creating the 
+My OS of choice is the Kali Linux CLI docker image. After creating the 
 gateway machine I gave it two network adapters. Screenshot is below.
 ![](https://i.imgur.com/wwPNJNy.png)
 
@@ -533,7 +533,7 @@ The configuration of the gateway machine is shown below.
 ![](https://i.imgur.com/GghzaUJ.png)
 
 
-To clear old ip configuration I used the following command:
+To clear old IP configuration I used the following command:
 ```
 # ip addr flush dev eth0
 ```
@@ -566,7 +566,7 @@ Screenshot of the resulting topology is below.
 ![](https://i.imgur.com/iintjyj.png)
 
 
-#### 4. Configure the IP address and enble IPv4 forwarding on the gateway.
+#### 4. Configure the IP address and enable IPv4 forwarding on the gateway.
 
 It was possible to edit the network configuration for the gateway machine 
 straight in the GNS3 gui window. I decided that the eth2 (which is 
@@ -586,15 +586,15 @@ Verify that IPv4 forwarding is enabled on the gateway machine.
 
 This means applying NAT rules to the packets flowing from Internal network 
 to the internet and to the packets flowing from the External network to the 
-internet. (and of course applying reverse NAT rules to responce packets).
+internet. (and of course applying reverse NAT rules to response packets).
 
-On the gateway execute the folloing commands:
+On the gateway execute the following commands:
 ```
 # iptables -t nat -A POSTROUTING -s 10.0.250.240/28 -o eth2 -j MASQUERADE
 # iptables -t nat -A POSTROUTING -s 192.168.250.240/28 -o eth2 -j MASQUERADE
 ```
 
-Check the nat table:
+Check the Nat table:
 ```
 # iptables --list -t nat
 Chain PREROUTING (policy ACCEPT)
@@ -626,16 +626,16 @@ default via 192.168.122.1 dev eth2 metric 258
 The gateway address has already been changed as part of the previous step, 
 so there is nothing to change here.
 
-Checking their network connectivity from Admin by pingin Web and google.com:
+Checking their network connectivity from Admin by pinging Web and google.com:
 ![](https://i.imgur.com/bepE0J8.png)
 
 Checking connectivity from the Worker machine is below.
 ![](https://i.imgur.com/mP7LCIM.png)
 
 
-#### 7. Configure port forwarding for http and ssh to Web and Admin respectively.
+#### 7. Configure port forwarding for HTTP and ssh to Web and Admin respectively.
 
-We use two rules, one for Web (http port 80) and one for Admin (ssh port 22):
+We use two rules, one for Web (HTTP port 80) and one for Admin (ssh port 22):
 ```
 # iptables -t nat -A PREROUTING -i eth2 -p tcp --dport 80 -j DNAT --to-destination 192.168.250.243
 # iptables -t nat -A PREROUTING -i eth2 -p tcp --dport 22 -j DNAT --to-destination 192.168.250.242
@@ -643,7 +643,7 @@ We use two rules, one for Web (http port 80) and one for Admin (ssh port 22):
 source: https://www.digitalocean.com/community/tutorials/how-to-forward-ports-through-a-linux-gateway-with-iptables and https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/4/html/Security_Guide/s1-firewall-ipt-fwd.html.
 
 Because we have NAT enabled, the traffic can not enter. So the rules just allow the traffic to enter and push it to a certain machine on the network. 
-When that machine answers it will reply to the external ip address which was supplied in the 
+When that machine answers it will reply to the external IP address which was supplied in the 
 packet. 
 
 Check the NAT table:
@@ -668,10 +668,10 @@ MASQUERADE  all  --  192.168.250.240/28   anywhere
 
 #### 8. Check that you can ssh to the Admin and access your web page from the outside.
 
-Successfull retrival of webpage from the Web host is shown below.
+Successfull retrieval of webpage from the Web host is shown below.
 ![](https://i.imgur.com/cMno51o.png)
 
-For the ssh to work, first we must either PermitRootLogin on the remote server and then loging with as a root user with root password or we can create a non-root user.
+For the ssh to work, first we must either PermitRootLogin on the remote server and then login with as a root user with root password or we can create a non-root user.
 Creating a dummy user is shown below.
 ![](https://i.imgur.com/D2O5d8W.png)
 
@@ -683,7 +683,7 @@ Then we can login to ssh from the host and retrieve the webpage from inside the 
 
 I decided to replace the gateway with an OpenWRT router.
 
-To install it I followed the official instrucitons, source https://docs.gns3.com/appliances/openwrt.html. OpenWRT is essentially a trimmed down linux box, so configuration steps are identical to the gateway. OpenWRT provides a web interface for configuration as well as ssh access.
+To install it I followed the official instructions, source https://docs.gns3.com/appliances/openwrt.html. OpenWRT is essentially a trimmed down Linux box, so configuration steps are identical to the gateway. OpenWRT provides a web interface for configuration as well as ssh access.
 
 Screenshot of the web interface.
 ![](https://i.imgur.com/xZjpDKX.png)
@@ -713,4 +713,4 @@ root@OpenWrt:~#
 
 #### 10. What extra capabilities does your new OS give you?
 
-Compared to using Ubuntu on the gateway, OpenWRT router is easier to setup and use, because it provides a nice web interface. With the interface many of the most common tasks in networking can be configured. In Ubuntu network configuration requiers a bit of extra skills/experience. OpenWRT has a image generation program that provides the ability to create system images with preconfigured network settings. The images can then easily be installed on other routers, which is very useful when setting up a large network. OpenWRT is a GNU/Linux OS, so its possible to extend its usage beyound what was intended. 
+Compared to using Ubuntu on the gateway, OpenWRT router is easier to setup and use, because it provides a nice web interface. With the interface many of the most common tasks in networking can be configured. In Ubuntu network configuration requires a bit of extra skills/experience. OpenWRT has a image generation program that provides the ability to create system images with preconfigured network settings. The images can then easily be installed on other routers, which is very useful when setting up a large network. OpenWRT is a GNU/Linux OS, so its possible to extend its usage beyond what was intended. 
