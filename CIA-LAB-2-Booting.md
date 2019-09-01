@@ -16,7 +16,7 @@ Instead of just copying the definition, lets see what it actually means.
 
 Now lets understand what is a "UEFI program". UEFI firmware is capable of executing programs that conform to the UEFI specification. To conform to the specification the program must:
 1. Be stored on the ESP (EFI System Partition) partition that is formatted as FAT32 (source: https://wiki.osdev.org/UEFI) and has partition type set to C12A7328-F81F-11D2-BA4B-00A0C93EC93B.
-2. Be stored in a PE (Portable Executable) format (an alternative to, for example, the ELF format). (source: https://wiki.osdev.org/UEFI and https://wiki.osdev.org/PE).
+2. Be stored in a PE (Portable Executable) format (an alternative to, for example, the ELF format). Actually the format is really called `PE32+` in the UEFI specification, but in terms of implementation it is just PE. (source: https://wiki.osdev.org/UEFI and https://wiki.osdev.org/PE).
 
 Such programs may be EFI drivers, EFI scripts, bootloaders, bootmanagers and finally just user applications such as a Hello World shell (source: https://github.com/tianocore/edk2/blob/master/ShellPkg/Application/ShellCTestApp/ShellCTestApp.c). Most common ways to create such programs is using "EDK II" from TianoCore project or using the GNU-EFI project (source: https://www.rodsbooks.com/efi-programming/prepare.html).
 
@@ -57,7 +57,7 @@ drwx------ 2 root root    4096 Aug 19 13:21 fw
 -rwx------ 1 root root 1334816 Aug 19 13:22 shimx64.efi
 ```
 
-From the above we can guess that probably grubx64.efi is responsible for bootloading Ubuntu. This program is GRUB ported to UEFI platform (source: https://wiki.osdev.org/GRUB#GRUB_for_UEFI) 
+From the above we can guess that probably grubx64.efi is responsible for bootloading Ubuntu. This program is GRUB ported to UEFI (its not really a full platform, but it is a different execution environment) (source: https://wiki.osdev.org/GRUB#GRUB_for_UEFI) 
 
 The last piece of the puzzle is understanding how UEFI firmware decides which UEFI OS loader to execute (when there are multiple OS installed and hence multiple UEFI OS loaders present). This question is addressed by a bootmanager. 
 
@@ -134,8 +134,11 @@ The steps that happen from system power-on until the OS loader runs for BIOS/MBR
 Actually block 0 on BIOS/MBR system normally stores some sort of a bootmanager, but for simplicity lets say that there is just one OS on disk and its bootloader (OS loader) is stored in block 0.
 (source: https://www.researchgate.net/publication/295010710_Booting_an_Intel_System_Architecture)
 
-The steps that happen from system power-on until the OS loader runs for UEFI system are essentially the same. In terms of hardware initialisation UEFI functionality embraces and extends the BIOS functionality. Because the tasks of detecting hardware, memory testing, configuring the PCI bus are still necessary and are pretty much the same.
-The only significant difference in the hardware boot process is how the UEFI firmware identifies the OS loader program (steps 9 and 10 above). The default UEFI bootmanager tries to use NVRAM variables to decide which program to run after the hardware initialisation is complete and the ESP partition has been mounted. If the variables do not contain useful information the default selection mechanism kicks in. The details of how the default UEFI bootmanager identifies and searches for the UEFI program to execute can be found at:
+The steps that happen from system power-on until the OS loader runs for UEFI system are essentially the same. In terms of hardware initialisation UEFI functionality embraces and extends the BIOS functionality. Because the tasks of detecting hardware, memory testing, configuring the PCI bus are still necessary and are pretty much the same. 
+
+UEFI firmware also does some of the things that were previous done by bootloader to prepare the environment for the kernel. For example UEFI firmware prepares a protected mode environment with flat segmentation and a long mode environment with identity-mapped paging (only for x84-64). The A20 gate is enabled as well. (source: https://wiki.osdev.org/UEFI and https://stackoverflow.com/questions/57747807/who-enables-the-a20-line-when-booting-in-pure-uefi/).
+
+Another significant difference is how the UEFI firmware identifies the OS loader program (steps 9 and 10 above). The default UEFI bootmanager tries to use NVRAM variables to decide which program to run after the hardware initialisation is complete and the ESP partition has been mounted. If the variables do not contain useful information the default selection mechanism kicks in. The details of how the default UEFI bootmanager identifies and searches for the UEFI program to execute can be found at:
 
 1. https://mjg59.livejournal.com/138188.html
 2. https://blog.uncooperative.org/blog/2014/02/06/the-efi-system-partition/
@@ -149,7 +152,7 @@ In the case of the linux kernel the UEFI bootloader can be provided in at least 
 
 1. A `*.efi` bootloader program in a subdirectory on the `EFI System Partition` (source https://www.happyassassin.net/2014/01/25/uefi-boot-how-does-that-actually-work-then/). This is the approach used by Ubuntu. The possible bootloader programs include GRUB (which is also a bootmanager), SYSLINUX, ELILO.
 
-2. The kernel can be configured with a built-in UEFI bootloader. Officially called the EFISTUB (source: http://www.rodsbooks.com/efi-bootloaders/efistub.html and https://lkml.org/lkml/2011/10/17/81). In this case the linux kernel becomes a normal UEFI application and must reside on the ESP partition. Then it can be loaded by the default UEFI bootmanager directly.
+2. The kernel can be configured with a built-in UEFI bootloader. Officially called the EFISTUB (source: http://www.rodsbooks.com/efi-bootloaders/efistub.html and https://lkml.org/lkml/2011/10/17/81 and https://www.kernel.org/doc/Documentation/efi-stub.txt). In this case the linux kernel becomes a normal UEFI application and must reside on the ESP partition. Then it can be loaded by the default UEFI bootmanager directly.
 
 Another source discussing the two methods of providing the UEFI OS loader: https://unix.stackexchange.com/questions/83744/why-do-most-distributions-chain-uefi-and-grub.
 
@@ -245,6 +248,8 @@ The typical case for a GNU/Linux distribution is to keep the kernel as an ELF fi
 
 The GRUB bootloader normally performs a load of the initrd as well, but that is not strictly necessary as it depends on how the kernel was build (source: https://stackoverflow.com/questions/6405083/is-it-possible-to-boot-the-linux-kernel-without-creating-an-initrd-image). 
 
+On MBR systems it was the job of the bootloader to setup 
+
 GRUB will perform the following commands to load ubuntu on my machine, as taken from the config, shown below:
 
 ```
@@ -280,7 +285,7 @@ To get more details on the steps see this link (its for BIOS/MBR, but applies to
 
 ### 6. Do you need an OS loader and/or boot loader to load a Linux kernel with UEFI? Explain why or why not.
 
-The linux kernel since version 3.3 provides a EFI_STUB that allows the kernel to be executed by UEFI firmware. 
+The linux kernel since version 3.3 provides a EFI_STUB that allows the kernel to be executed by UEFI firmware. (source: https://www.kernel.org/doc/Documentation/efi-stub.txt)
 
 The command to check if the kenrel was build with EFI_STUB support is shown below:
 ```
@@ -319,6 +324,7 @@ sources:
 1. https://www.gnu.org/software/grub/manual/grub/grub.html#BIOS-installation
 2. https://www.gnu.org/software/grub/manual/grub/grub.html#Images
 3. https://stackoverflow.com/questions/11357868/where-does-code-of-grub-stage-1-5-reside-on-disk-and-what-is-the-address-it-is-l
+4. Example bootloader: http://independent-software.com/operating-system-development-first-and-second-stage-bootloaders.html
 
 
 ### 8. Where are the different stages found on the disk?
@@ -332,4 +338,63 @@ The stage 1.5 code is placed in the (usually) unused space on the hard drive aft
 GPT partitioning and other (unusual) layouts do not provide this space.
 
 Finally the stage 2 resides on an actual filesystem and is a collection of code and data with more GRUB functionallity.
+
+### 9. Describe the entire startup process of Ubuntu 16.04 in the default installation. The subquestions below are leaders to help you along, they must be answered but by no means represent the entire startup process of Ubuntu.
+
+#### (a) What is the first process started by the kernel?
+#### (b) Where is the configuration kept for the started process?
+#### \(c\) It starts multiple processes. How is the order of execution defined?
+
+The kernel image isnt a simple executable, but a compressed kernel image. Typically this is a zImage (compressed image, less than 512KB) or a bzImage (big compressed image, greater than 512KB). The bzImage is also called  vmlinuz on Ubuntu.
+
+At the head of this kernel image are a number of routines that do some minimal amount of hardware setup (like setting up the stack) and then extract the kernel. They include code for KASLR (Kernel Address Space Layout Randomization) relocation, decompression, ELF parsing, and relocation processing. Also included are functions for writing output to screen and serial device. These routines are in the `/boot/compressed/` directory of the kernel source for each architecture i.e. `/arch/x86/boot/compressed/`. Most of them are in `misc.c`.
+
+When the bzImage is invoked, you begin at `/arch/x86/boot/compressed/head_64.S` in the `start` assembly routine.
+
+The routine finishes by calling the extracted and relocated kernel. Then the kernel boot begins.
+
+sources: 
+1. https://github.com/torvalds/linux/tree/master/arch/x86/boot/compressed
+2. https://blog.lse.epita.fr/cat/sustem/system-linux/index.html
+
+Below is a simplified view of the kernel boot process (and slightly outdated, because it uses 32-bit routines instead of 64-bit counterparts):
+![](https://i.imgur.com/pwzkscn.gif)
+
+The `start_kernel` routine in `/init/main.c` is where the non-architecture specific part of the kernel boot begins.
+
+The kernel itself calls a long list of initialisation functions such as setting up interrupts, enabling the A20 line on x86 processors, configuring GDT table, further memory configuration, setting up virtual memory. In particular the kernel mounts the initial RAM disk (initrd) which serves as a temporary root file system. It contains the all the necessary modules (which for example interact with peripherals) that are needed for the kernel to fully boot without having to mount any physical disks. Then the kernel scheduler is initialised.
+
+After the kernel is finally booted, the initrd filesystem is unmounted and the real root filesystem from one of the partitions is mounted. The name of the partition to mount normally gets passed to the kernel as a command line argument `root=` by the bootloader.
+
+The kernel command line can be checked as shown below:
+```
+$ cat /proc/cmdline 
+BOOT_IMAGE=/boot/vmlinuz-5.0.0-25-generic root=/dev/mapper/ubuntu--vg-root ro quiet splash vt.handoff=1
+```
+
+
+Then a couple of things happen that eventually lead to running the `/sbin/init` as the first user space process. At this moment all the action is inside the `/init/main.c` kernel source file. 
+
+In `rest_init` function a call is made to create a new kernel thread (with PID=1) that will execute the `kernel_init` function. 
+
+This can be seen on the screenshot below:
+![](https://i.imgur.com/utz7w6d.png)
+
+The kernel also creates a few more kernel threads for system management and the idle thread. Finally the shceduler interrupts are enabled and the scheduler can provide pre-emptive multi-tasking.
+
+The `kernel_init` is run as PID=1 and eventually tries to find and execute an init program provided on the filesystem. 
+
+This can be seen on the screenshot below (inside `kernel_init`):
+![](https://i.imgur.com/AwMaohZ.png)
+
+(source: https://github.com/torvalds/linux/blob/master/init/main.c and https://developer.ibm.com/articles/l-linuxboot/).
+
+The init process is left to continue booting the user environment in user space. The job of init is to load all services and user-space tools, mount all partitions listed in /etc/fstab. And finally to present the user with a login screen for the freshly booted system.
+
+The details of userspace boot depend on the particular GNU/Linux distribution.
+
+(source: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/5/html/installation_guide/ch-boot-init-shutdown)
+
+In Ubuntu `/sbin/init` is a symbolic link to `/lib/systemd/systemd`.
+
 
