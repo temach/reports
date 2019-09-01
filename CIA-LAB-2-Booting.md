@@ -252,18 +252,35 @@ The key parts are:
 
 To get more details on the steps see this link (its for BIOS/MBR, but applies to UEFI/GPT as well): https://www.unix-ninja.com/p/Manually_booting_the_Linux_kernel_from_GRUB
 
-**An interesting note**: linux kernel used in Ubuntu comes with EFI_STUB support.
-The command to check the kenrel for EFI_STUB support is shown below:
+
+
+### 6. Do you need an OS loader and/or boot loader to load a Linux kernel with UEFI? Explain why or why not.
+
+The linux kernel since version 3.3 provides a EFI_STUB that allows the kernel to be executed by UEFI firmware. 
+
+The command to check if the kenrel was build with EFI_STUB support is shown below:
 ```
 # cat /boot/config-5.0.0-23-generic | grep EFI_STUB
 CONFIG_EFI_STUB=y
 ```
 (source for how to check kernel config: https://superuser.com/questions/287371/obtain-kernel-config-from-currently-running-linux-system)
 
-The kernel can be its own bootloader if executed by the UEFI firmware. In this configuration, GRUB would act as a bootmanager, but after the user has decided what kernel to load, GRUB would simply trigger the UEFI firmware to execute the linux kernel `.efi` program. 
+The kernel can be its own bootloader if executed by the UEFI firmware, 
+because the kernel image contains the code to bootload itself. The OS loader is also not required because all that is needed to boot the kernel is to configure the default UEFI bootmanager with the right path to the kernel image (of course the kernel image has to be placed on the ESP).
+So actually it is a reasonable setup to have just one subdirectory on the ESP pertition with just one file - the linux kernel with EFI_STUB.
+
+There is still an extra role GRUB can play in this configuration. 
+GRUB can act as a bootmanager, allowing the user to choose a kernel. After the user has decided what kernel to load, GRUB would simply trigger the UEFI firmware to execute the particular kernel `.efi`. 
 
 There are some existing bootmanagers such as rEFInd and systemd-boot, that are simply bootmanagers and specifically exclude the bootloader functionallity, expecting the kernel to have a working EFI_STUB. 
 
 Another source discussing the two methods of providing the UEFI OS loader: https://unix.stackexchange.com/questions/83744/why-do-most-distributions-chain-uefi-and-grub.
 
+Actually according to https://blog.lse.epita.fr/cat/sustem/system-linux/index.html the kernel version 2.5.64 used to provide a fake MBR and a bootloader as well, so the kernel image was comletely self-contained and could boot after being copied with dd to a floppy. Now they don't do crazy things like that anymore, however the EFI_STUB is a pretty sneaky hack for UEFI systems.
 
+### 7. How many parts (or stages) does GRUB have in an MBR system, and what is their task?
+
+
+
+
+### 8. Where are the different stages found on the disk?
