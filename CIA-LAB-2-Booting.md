@@ -7,9 +7,6 @@ Unfortunately rendering the document to PDF breaks some long lines and crops ima
 
 ## Task 1 - Loading the OS
 
-The UEFI spec defines an executable format and requires all UEFI firmwares (the program that is installed into the motherboard) be capable of executing code in this format. When you write a bootloader for native UEFI, you write in this format. A bootloader is just a UEFI application, like the UEFI shell and what not. Bootloader on BIOS system was not allowd to return control to the BIOS (to the computer firmware). But UEFI allows application to return control to the firmware. The format the UEFI can load into memory is PE (Portable Executable, source: https://wiki.osdev.org/PE, the UEFI specification could have just as well used the ELF format). Bootstrapping on EFI involves a boot manager that is built in to the firmware. EFI relies on a special partition, known as the EFI System Partition (ESP), to hold EFI-specific data. The ESP should officially use a FAT32 filesystem, although some (especially older) Linux distributions place a FAT16 filesystem on this partition. The ESP holds EFI drivers, EFI applications, EFI scripts, and EFI boot loaders, among other things.
-
-
 ### 1. What is an UEFI OS loader and where does the Ubuntu OS loader reside on the system? Hint: See the UEFI specification.
 
 What is a "UEFI OS loader"? "OS loader" is program to load the OS. Then at a higher level of abstraction "UEFI OS loader" can be called a "UEFI program (to load the OS)". 
@@ -26,11 +23,13 @@ To be completely clear, the term "UEFI firmware" refers to the code that is (nor
 
 Now lets look back at the "UEFI OS loader" term and focus on the "OS loader" part. 
 An OS loader is a program that loads the kernel image into memory and begins its execution. 
-The typical case for a GNU/Linux distribution is to keep the kernel as an ELF file stored in the /boot/ directory on an ext4 partition (the kernel is actually compressed, but will self-extract on execution). The filename used for the image is normally `bzImage` or `vmlinuz` (source with description: https://unix.stackexchange.com/questions/5518/what-is-the-difference-between-the-following-kernel-makefile-terms-vmlinux-vml and http://www.linfo.org/vmlinuz.html).
+The typical case for a GNU/Linux distribution is to keep the kernel as an ELF (Executable and Linkable Format) file stored in the /boot/ directory on an ext4 partition. The kernel is actually compressed, but will self-extract on execution, more info on kernel booting can be found here: https://blog.lse.epita.fr/cat/sustem/system-linux/index.html. 
+
+The filename used for the kernel image is normally `bzImage` or `vmlinuz` (source with description: https://unix.stackexchange.com/questions/5518/what-is-the-difference-between-the-following-kernel-makefile-terms-vmlinux-vml and http://www.linfo.org/vmlinuz.html).
 The bootloader normally handles loading the initrd as well, but that is not strictly necessary as it depends on how the kernel was build (source: https://stackoverflow.com/questions/6405083/is-it-possible-to-boot-the-linux-kernel-without-creating-an-initrd-image). 
 To get an overview of the typical steps to load the kernel in GRUB see the link (its for MBR, but applies to GPT too): https://www.unix-ninja.com/p/Manually_booting_the_Linux_kernel_from_GRUB
 
-The UEFI specification does not require that UEFI firmware know anything about EFL or how to mount and search ext4 filesystem for the kernel image. This is the job of the bootloader (OS loader).
+The UEFI specification does not require that UEFI firmware know anything about ELF or how to mount and search ext4 filesystem for the kernel image. This is the job of the bootloader (OS loader).
 
 Therefore (in the GNU/Linux world) the "UEFI OS loader" is a UEFI program that knows how to mount the ext4 filesystem, search it for a linux kernel image, load the image and execute it.
 
@@ -135,7 +134,7 @@ GRUB however is more than just a bootloader, because it is also a bootmanager. W
 
 ### 4. How does the Ubuntu OS loader load the GRUB boot loader?
 
-The word "Ubuntu" in the question seems to be a mistake. Without it the question becomes: `How does the OS loader load the GRUB boot loader?` which makes more sence to answer.
+The word "Ubuntu" in the question seems to be a mistake. Without it the question becomes: `How does the OS loader load the GRUB boot loader?` which makes much more sense to answer.
 
 To understand how the OS loader loads the GRUB boot loader we must look at the whole chain of events that starts from the default UEFI bootmanager configuration (that is stored in NVRAM).
 
@@ -156,13 +155,29 @@ Boot0007* IBA GE Slot 00C8 v1550	BBS(Network,,0x0)..BO
 Boot0008* rEFInd	HD(1,GPT,f57ce334-0038-4c3b-8094-d3d2639871ae,0x800,0x100000)/File(\EFI\refind\refind_x64.efi)
 ```
 
-In this configuration the boot entry 0000 is the ubuntu entry. The UEFI program that will be executed by the UEFI firmware for this entry is `\EFI\ubuntu\shimx64.efi`. This is a Shim program. It is used to handle Secure Boot correctly. After it has done its job (which may be nothing if Secure Boot is disabled) it proceeds to load the "second-stage image" as described in the official Ubuntu documentation (source: https://wiki.ubuntu.com/UEFI/SecureBoot) this is normally GRUB. When GRUB binary is executed it presents a menu to the user, so to be pedantic the OS loader never actually loads the "GRUB bootloader", it loads just GRUB which is bootmanager and a bootloader in one.
+In this configuration the boot entry 0000 is the ubuntu entry. The UEFI program that will be executed by the UEFI firmware for this entry is `\EFI\ubuntu\shimx64.efi`. 
+
+The details of how exactly the UEFI firmware executes this program are not 100% clear, because each UEFI implementation is different. However they all must mount the ESP, find the program file, load it into memory according to the PE (Portable Executable) specification, and then start its execution. 
+
+
+The UEFI firmware also provides some arguments to the running program.
+Most importantly the UEFI firmware must provide the program with a pointer to EFI_SYSTEM_TABLE stuructue, which contains pointers to the EFI_RUNTIME_SERVICES and EFI_BOOT_SERVICES tables (source: https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf). These tables describe the capabilities of the system and serve as a standard library of functions. If the program was build using the GNU-EFI framework then its main function will be of the form:
+```
+EFI_STATUS efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab);
+```
+source: https://blog.lse.epita.fr/cat/sustem/system-linux/index.html
+
+In my case UEFI firmware executes `shimx64.efi`. This is a Shim program. It is used to handle Secure Boot correctly. After it has done its job (which may be nothing if Secure Boot is disabled) it proceeds to load the "second-stage image" as described in the official Ubuntu documentation (source: https://wiki.ubuntu.com/UEFI/SecureBoot) this is normally GRUB.
+
+When GRUB binary is executed it presents a menu to the user, so to be pedantic the OS loader never actually loads the "GRUB bootloader", it loads just GRUB which is a bootmanager and a bootloader in one executable.
 
 ### 5. Explain how the GRUB boot loader, in turn, loads and run the kernel by answering these 3 questions:
 
 #### (a) What type of filesystem is the kernel on?
 
-The linux kernel is stored either on the same partition as the user's home partition or it can be stored on a dedicated /boot partition. The filesystem depends on user choice, however the user would be smart to choose a filesystem that is supported by the GRUB bootloader. Otherwise his system would not boot. The most commonly used filesystem is ext4 or its older variant ext3.
+The linux kernel is normally stored either on the same partition as the user's home partition or it can be stored on a dedicated /boot partition. The filesystem depends on user choice, however the user would be smart to choose a filesystem that is supported by the GRUB bootloader. Otherwise his system might not boot. The most commonly used filesystem is ext4 or its older variant ext3.
+
+However since linux version 3.3, the kernel has a EFI boot stub availiable. This means that the kernel can be a UEFI application, i.e. it has a stub that will be interpreted correctly by the UEFI firmware and that will bootload the kernel (source: https://blog.lse.epita.fr/cat/sustem/system-linux/index.html). In this case the kernel can reside on the ESP which uses a FAT32 filesystem. 
 
 #### (b) What type(s) of filesystem does UEFI support?
 
@@ -199,7 +214,10 @@ The filesystem is typically ext4 and GRUB comes with support for ext4.
 
 The configuration file will tell GRUB what kernels are present on the system and their location. Then GRUB presents a bootmanager menu to me (to the user). After a certain kernel is choosen GRUB runs the commands specified in its config for this particular kernel that are necessary to load the kernel, the initrd and to execute it.
 
-The typical case for a GNU/Linux distribution is to keep the kernel as an ELF file stored in the /boot/ directory on the same filesystem where the grub config is stored (the actual kernel is compressed, but will decompress itself when executed). The filename used for the image is normally `bzImage` or `vmlinuz` (source with description: https://unix.stackexchange.com/questions/5518/what-is-the-difference-between-the-following-kernel-makefile-terms-vmlinux-vml and http://www.linfo.org/vmlinuz.html).
+The typical case for a GNU/Linux distribution is to keep the kernel as an ELF file stored in the /boot/ directory on the same filesystem where the grub config is stored (the actual kernel is compressed, but will decompress itself when executed). The filename used for the image is normally `bzImage` or `vmlinuz`. More detailes on the types of file used for the kernel image can be found at:
+
+1. https://unix.stackexchange.com/questions/5518/what-is-the-difference-between-the-following-kernel-makefile-terms-vmlinux-vml
+2. http://www.linfo.org/vmlinuz.html
 
 The GRUB bootloader normally performs a load of the initrd as well, but that is not strictly necessary as it depends on how the kernel was build (source: https://stackoverflow.com/questions/6405083/is-it-possible-to-boot-the-linux-kernel-without-creating-an-initrd-image). 
 
@@ -233,4 +251,19 @@ The key parts are:
 4. After all the loading is done, GRUB executes the `boot` command to handle control off to the kernel.
 
 To get more details on the steps see this link (its for BIOS/MBR, but applies to UEFI/GPT as well): https://www.unix-ninja.com/p/Manually_booting_the_Linux_kernel_from_GRUB
+
+**An interesting note**: linux kernel used in Ubuntu comes with EFI_STUB support.
+The command to check the kenrel for EFI_STUB support is shown below:
+```
+# cat /boot/config-5.0.0-23-generic | grep EFI_STUB
+CONFIG_EFI_STUB=y
+```
+(source for how to check kernel config: https://superuser.com/questions/287371/obtain-kernel-config-from-currently-running-linux-system)
+
+The kernel can be its own bootloader if executed by the UEFI firmware. In this configuration, GRUB would act as a bootmanager, but after the user has decided what kernel to load, GRUB would simply trigger the UEFI firmware to execute the linux kernel `.efi` program. 
+
+There are some existing bootmanagers such as rEFInd and systemd-boot, that are simply bootmanagers and specifically exclude the bootloader functionallity, expecting the kernel to have a working EFI_STUB. 
+
+Another source discussing the two methods of providing the UEFI OS loader: https://unix.stackexchange.com/questions/83744/why-do-most-distributions-chain-uefi-and-grub.
+
 
