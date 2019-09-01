@@ -22,7 +22,7 @@ Such programs may be EFI drivers, EFI scripts, bootloaders, bootmanagers and fin
 
 To sum up a "UEFI program" is a program that UEFI firmware can find, load and execute. The UEFI specification requires that the UEFI firmware can run UEFI programs.
 
-To be completely clear, the term "UEFI firmware" refers to the code that is (normally) developed by the motherboard manufacturer and comes pre-installed in the motherboard ROM. In older motherboards this ROM would contain BIOS code. Another interesting note is that UEFI firmware acts as a half-baked OS. It provides a standard library with quite a few functions, it can load and execute user programs, user programs can finish execution and return control back to UEFI firmware. The conclusion to draw from the above is that UEFI is a reasonably comlicated piece of software with a different implementation by each manufacturer! UEFI specification allows the manufacturers to include many more interesting functions than what is required by the UEFI specification.
+To be completely clear, the term "UEFI firmware" refers to the code that is (normally) developed by the motherboard manufacturer and comes pre-installed in the motherboard ROM. In older motherboards this ROM would contain BIOS code. Another interesting note is that UEFI firmware acts as a half-baked OS. It provides a standard library with quite a few functions, it can load and execute user programs, user programs can finish execution and return control back to UEFI firmware. The conclusion to draw from the above is that UEFI is a reasonably comlicated piece of software with a different implementation by each manufacturer! UEFI specification allows the manufacturers to include many more interesting features than what is required by the UEFI specification.
 
 Now lets look back at the "UEFI OS loader" term and focus on the "OS loader" part. 
 An OS loader is a program that loads the kernel image into memory and begins its execution. 
@@ -36,15 +36,15 @@ The UEFI specification does not require that UEFI firmware know anything about E
 
 Therefore (in the GNU/Linux world) the "UEFI OS loader" is a UEFI program that knows how to mount the ext4 filesystem, search it for a linux kernel image, load the image and execute it.
 
-If the UEFI OS loader successfully loads its operating system, it can take control of the system by using the ExitBootServices() function. After successfully calling ExitBootServices(), all boot services in the system are terminated, including memory management, and the UEFI OS loader is responsible for the continued operation of the system. (source: https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf)
+If the UEFI OS loader successfully loads its operating system, it can take control of the system by using the ExitBootServices() UEFI firmware function. After successfully calling ExitBootServices(), all boot services in the system are terminated, including memory management, and the UEFI OS loader is responsible for the continued operation of the system. (source: https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf)
 
 When a new OS is installed on a GPT disk, one of the steps during the installation is making sure a UEFI OS loader program is present and correctly configured to load the newly installed kernel. The UEFI OS loader is placed in a subdirectory under the EFI directory on the ESP partition. To avoid name collisions organisations should register a subdirectory name with the UEFI Forum, the current list of registered subdirectories can be seen here: https://uefi.org/registry. 
 
 In an attempts to pinpoint the location of the UEFI bootloader lets examine the contents of the ESP partition. We can find an "ubuntu" folder there.
 Mounting the ESP partition and listing files in `\EFI\ubuntu\` is shown below:
 ```
-# mount /dev/sda1 /mnt/esp
-# ls -la /mnt/esp/EFI/ubuntu
+$ mount /dev/sda1 /mnt/esp
+$ ls -la /mnt/esp/EFI/ubuntu
 total 3732
 drwx------ 3 root root    4096 Aug 19 13:22 .
 drwx------ 5 root root    4096 Aug 31 00:51 ..
@@ -107,7 +107,7 @@ Boot0008* rEFInd	HD(1,GPT,f57ce334-0038-4c3b-8094-d3d2639871ae,0x800,0x100000)/F
 
 On my machine the BootOrder starts with entries 0008 and then 0000. 
 
-1. Boot option 0000 points to the path `\EFI\ubuntu\shimx64.efi` which is the OS loader for Ubuntu. The file is called `shimx64.efi`, it is actually a wrapper that deals with some Secure Boot issues before loading the second stage image: GRUB or MokManager (source: https://wiki.ubuntu.com/UEFI/SecureBoot). More info about the UEFI shim can be found here: http://www.rodsbooks.com/efi-bootloaders/secureboot.html#initial_shim). 
+1. Boot option 0000 points to the path `\EFI\ubuntu\shimx64.efi` which is the OS loader for Ubuntu. The file is called `shimx64.efi`, it is actually a wrapper that deals with some Secure Boot issues before loading the second stage image: GRUB or MokManager (source: https://wiki.ubuntu.com/UEFI/SecureBoot). More info about the UEFI shim can be found here: http://www.rodsbooks.com/efi-bootloaders/secureboot.html#initial_shim. 
 
 2. Boot option 0008 points to `\EFI\refind\refind_x64.efi` which is a UEFI program "rEFInd" (https://www.rodsbooks.com/refind/index.html), this program is a custom bootmanager. On my machine I have configured the default UEFI bootmanager to "boot" (i.e. execute) rEFInd using the configuration steps from https://www.rodsbooks.com/refind/installing.html.
 
@@ -118,8 +118,26 @@ Finally returning to the original question: the UEFI OS loader for Ubuntu is the
 
 ### 2. Describe in order all the steps required for booting the computer (until the OS loader starts running.)
 
+The steps that happen from system power-on until the OS loader runs for BIOS/MBR system:
 
+1. Power-on self-test (POST)
+2. Detect the video card’s (chip’s) BIOS and execute its code to initialize the video hardware
+3. Detect any other device BIOSes and invoke their initialize functions
+4. Display the BIOS start-up screen
+5. Perform a brief memory test (identify how much memory is in the system)
+6. Set memory and drive parameters
+7. Configure PCI bus devices
+8. Assign resources (DMA channels & IRQs)
+9. Identify the boot device (normally one of the hard drives, but can be a floppy)
+10. Read block 0 from device (where OS loader is stored) into memory location 0x7c00 and jump there.
 
+Actually block 0 on BIOS/MBR system normally stores some sort of a bootmanager, but for simplicity lets say that there is just one OS on disk and its bootloader (OS loader) is stored in block 0.
+(source: https://www.researchgate.net/publication/295010710_Booting_an_Intel_System_Architecture)
+
+The steps that happen from system power-on until the OS loader runs for UEFI system are essentially the same. UEFI firmware replaces BIOS firmware, but the tasks of detecting hardware, memory testing, configuring the PCI bus are still necessary and are pretty much the same. The only significant difference in the hardware boot process is how the UEFI firmware identifies the OS loader program (steps 9 and 10 above). The default UEFI bootmanager tries to use NVRAM variables to decide which program to run after the hardware initialisation is complete and the ESP partition has been mounted. If the variables do not contain useful information the default selection mechanism kicks in. The details of how the default UEFI bootmanager identifies and searches for the UEFI program to execute can be found at:
+
+1. https://mjg59.livejournal.com/138188.html
+2. https://blog.uncooperative.org/blog/2014/02/06/the-efi-system-partition/
 
 
 ### 3. What is the purpose of the GRUB boot loader in a UEFI system?
