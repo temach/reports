@@ -2,14 +2,17 @@
 #### Artem Abramov SNE19
 
 May I suggest viewing this document in your browser at address: 
-https://github.com/temach/innopolis_university_reports/
+https://github.com/temach/innopolis_university_reports/blob/master/CIA-LAB-2-Booting.md
 Unfortunately rendering the document to PDF breaks some long lines and crops images.
 
 ## Task 1 - Loading the OS
 
 ### 1. What is an UEFI OS loader and where does the Ubuntu OS loader reside on the system? Hint: See the UEFI specification.
 
-What is a "UEFI OS loader"? "OS loader" is program to load the OS. Then at a higher level of abstraction "UEFI OS loader" can be called a "UEFI program (to load the OS)". 
+What is a "UEFI OS loader"? The term is exactly defined in the UEFI specification in section `2.1.3 UEFI OS Loaders` (source: https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf).
+
+Instead of just copying the definition, lets see what it actually means.
+"OS loader" is program to load the OS. Then at a higher level of abstraction "UEFI OS loader" can be called a "UEFI program (to load the OS)".
 
 Now lets understand what is a "UEFI program". UEFI firmware is capable of executing programs that conform to the UEFI specification. To conform to the specification the program must:
 1. Be stored on the ESP (EFI System Partition) partition that is formatted as FAT32 (source: https://wiki.osdev.org/UEFI) and has partition type set to C12A7328-F81F-11D2-BA4B-00A0C93EC93B.
@@ -32,6 +35,8 @@ To get an overview of the typical steps to load the kernel in GRUB see the link 
 The UEFI specification does not require that UEFI firmware know anything about ELF or how to mount and search ext4 filesystem for the kernel image. This is the job of the bootloader (OS loader).
 
 Therefore (in the GNU/Linux world) the "UEFI OS loader" is a UEFI program that knows how to mount the ext4 filesystem, search it for a linux kernel image, load the image and execute it.
+
+If the UEFI OS loader successfully loads its operating system, it can take control of the system by using the ExitBootServices() function. After successfully calling ExitBootServices(), all boot services in the system are terminated, including memory management, and the UEFI OS loader is responsible for the continued operation of the system. (source: https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf)
 
 When a new OS is installed on a GPT disk, one of the steps during the installation is making sure a UEFI OS loader program is present and correctly configured to load the newly installed kernel. The UEFI OS loader is placed in a subdirectory under the EFI directory on the ESP partition. To avoid name collisions organisations should register a subdirectory name with the UEFI Forum, the current list of registered subdirectories can be seen here: https://uefi.org/registry. 
 
