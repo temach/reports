@@ -121,8 +121,8 @@ Finally returning to the original question: the UEFI OS loader for Ubuntu is the
 The steps that happen from system power-on until the OS loader runs for BIOS/MBR system:
 
 1. Power-on self-test (POST)
-2. Detect the video card’s (chip’s) BIOS and execute its code to initialize the video hardware
-3. Detect any other device BIOSes and invoke their initialize functions
+2. Detect the video card and execute its code to initialize the video hardware
+3. Detect any other device chips and invoke their initialize functions
 4. Display the BIOS start-up screen
 5. Perform a brief memory test (identify how much memory is in the system)
 6. Set memory and drive parameters
@@ -134,7 +134,8 @@ The steps that happen from system power-on until the OS loader runs for BIOS/MBR
 Actually block 0 on BIOS/MBR system normally stores some sort of a bootmanager, but for simplicity lets say that there is just one OS on disk and its bootloader (OS loader) is stored in block 0.
 (source: https://www.researchgate.net/publication/295010710_Booting_an_Intel_System_Architecture)
 
-The steps that happen from system power-on until the OS loader runs for UEFI system are essentially the same. UEFI firmware replaces BIOS firmware, but the tasks of detecting hardware, memory testing, configuring the PCI bus are still necessary and are pretty much the same. The only significant difference in the hardware boot process is how the UEFI firmware identifies the OS loader program (steps 9 and 10 above). The default UEFI bootmanager tries to use NVRAM variables to decide which program to run after the hardware initialisation is complete and the ESP partition has been mounted. If the variables do not contain useful information the default selection mechanism kicks in. The details of how the default UEFI bootmanager identifies and searches for the UEFI program to execute can be found at:
+The steps that happen from system power-on until the OS loader runs for UEFI system are essentially the same. In terms of hardware initialisation UEFI functionality embraces and extends the BIOS functionality. Because the tasks of detecting hardware, memory testing, configuring the PCI bus are still necessary and are pretty much the same.
+The only significant difference in the hardware boot process is how the UEFI firmware identifies the OS loader program (steps 9 and 10 above). The default UEFI bootmanager tries to use NVRAM variables to decide which program to run after the hardware initialisation is complete and the ESP partition has been mounted. If the variables do not contain useful information the default selection mechanism kicks in. The details of how the default UEFI bootmanager identifies and searches for the UEFI program to execute can be found at:
 
 1. https://mjg59.livejournal.com/138188.html
 2. https://blog.uncooperative.org/blog/2014/02/06/the-efi-system-partition/
@@ -304,6 +305,31 @@ Actually according to https://blog.lse.epita.fr/cat/sustem/system-linux/index.ht
 ### 7. How many parts (or stages) does GRUB have in an MBR system, and what is their task?
 
 
+The original design of MBR expected that the bootloader could fit into the area before the MBR partition table. As the bootloader became a bootmanager as well it was necessary to split it into two parts and keep the larger part (the config and some modules) on one of the actual partitions. 
+
+The first stage of the bootloader fits into the first sector on disk, its a really small part whose purpose is to load the stage 1.5 code to memory and start its execution. 
+
+The stage 1.5 code is placed in the (usually) unused space on the hard drive after the MBR partiton table, but before the first partition. 
+GPT partitioning and other (unusual) layouts do not provide this space.
+This is the core image of GRUB. It is built by the grub-mkimage program. Usually, it contains just enough modules to access `/boot/grub`, and load stage 2 code/data (including menu handling, the ability to load target operating systems, and so on) from the ext2/3/4 filesystem at run-time. The core image has to be kept small since the areas of disk where it must be installed are often as small as 32KB.
+
+Finally the stage 2 resides on an actual filesystem and is a collection of code and data with more GRUB functionallity. Such menu handling, the ability to load target operating systems (i.e. different bootloaders including chaining mechanisms), and so on.
+
+sources:
+1. https://www.gnu.org/software/grub/manual/grub/grub.html#BIOS-installation
+2. https://www.gnu.org/software/grub/manual/grub/grub.html#Images
+3. https://stackoverflow.com/questions/11357868/where-does-code-of-grub-stage-1-5-reside-on-disk-and-what-is-the-address-it-is-l
 
 
 ### 8. Where are the different stages found on the disk?
+
+Below is a graphical presentation of the location of GRUB data on the hard drive from wikipedia:
+![](https://i.imgur.com/D71OcZ4.png)
+
+As already explained in the answer to question 7 above, the first stage of the bootloader fits into the first sector on disk, before the MBR partition table. 
+
+The stage 1.5 code is placed in the (usually) unused space on the hard drive after the MBR partiton table, but before the first partition. 
+GPT partitioning and other (unusual) layouts do not provide this space.
+
+Finally the stage 2 resides on an actual filesystem and is a collection of code and data with more GRUB functionallity.
+
