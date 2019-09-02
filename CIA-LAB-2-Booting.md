@@ -22,7 +22,7 @@ Such programs may be EFI drivers, EFI scripts, bootloaders, bootmanagers and fin
 
 To sum up a "UEFI program" is a program that UEFI firmware can find, load and execute. The UEFI specification requires that the UEFI firmware can run UEFI programs.
 
-To be completely clear, the term "UEFI firmware" refers to the code that is (normally) developed by the motherboard manufacturer and comes pre-installed in the motherboard ROM. In older motherboards this ROM would contain BIOS code. Another interesting note is that UEFI firmware acts as a half-baked OS. It provides a standard library with quite a few functions, it can load and execute user programs, user programs can finish execution and return control back to UEFI firmware. The conclusion to draw from the above is that UEFI is a reasonably comlicated piece of software with a different implementation by each manufacturer! UEFI specification allows the manufacturers to include many more interesting features than what is required by the UEFI specification.
+To be completely clear, the term "UEFI firmware" refers to the code that is (normally) developed by the motherboard manufacturer and comes pre-installed in the motherboard ROM. In older motherboards this ROM would contain BIOS code. Another interesting note is that UEFI firmware acts as a half-baked OS. It provides a standard library with quite a few functions, it can load and execute user programs, user programs can finish execution and return control back to UEFI firmware. The conclusion to draw from the above is that UEFI is a reasonably complicated piece of software with a different implementation by each manufacturer! UEFI specification allows the manufacturers to include many more interesting features than what is required by the UEFI specification.
 
 Now lets look back at the "UEFI OS loader" term and focus on the "OS loader" part. 
 An OS loader is a program that loads the kernel image into memory and begins its execution. 
@@ -34,7 +34,7 @@ To get an overview of the typical steps to load the kernel in GRUB see the link 
 
 The UEFI specification does not require that UEFI firmware know anything about ELF or how to mount and search ext4 filesystem for the kernel image. This is the job of the bootloader (OS loader).
 
-Therefore (in the GNU/Linux world) the "UEFI OS loader" is a UEFI program that knows how to mount the ext4 filesystem, search it for a linux kernel image, load the image and execute it.
+Therefore (in the GNU/Linux world) the "UEFI OS loader" is a UEFI program that knows how to mount the ext4 filesystem, search it for a Linux kernel image, load the image and execute it.
 
 If the UEFI OS loader successfully loads its operating system, it can take control of the system by using the ExitBootServices() UEFI firmware function. After successfully calling ExitBootServices(), all boot services in the system are terminated, including memory management, and the UEFI OS loader is responsible for the continued operation of the system. (source: https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf)
 
@@ -113,7 +113,7 @@ On my machine the BootOrder starts with entries 0008 and then 0000.
 
 See http://www.rodsbooks.com/efi-bootloaders/index.html for a deeper discussion of the differences between a bootloader and a bootmanager.
 
-Finally returning to the original question: the UEFI OS loader for Ubuntu is the shim program that is located on the ESP partition in the path `\EFI\ubuntu\shimx64.efi`, after the shim handles the SecureBoot procedure correctly it loads GRUB `\EFI\ubuntu\grubx64.efi` that does the actual loading of the linux kernel for Ubuntu. If Secure Boot is disabled the shim goes directly to loading GRUB.
+Finally returning to the original question: the UEFI OS loader for Ubuntu is the shim program that is located on the ESP partition in the path `\EFI\ubuntu\shimx64.efi`, after the shim handles the SecureBoot procedure correctly it loads GRUB `\EFI\ubuntu\grubx64.efi` that does the actual loading of the Linux kernel for Ubuntu. If Secure Boot is disabled the shim goes directly to loading GRUB.
 
 
 ### 2. Describe in order all the steps required for booting the computer (until the OS loader starts running.)
@@ -146,13 +146,13 @@ Another significant difference is how the UEFI firmware identifies the OS loader
 
 ### 3. What is the purpose of the GRUB boot loader in a UEFI system?
 
-As already state above, the UEFI specification does not require that UEFI firmware know anything about EFL or how to mount and search ext4 filesystem for the kernel image. In the GNU/Linux world the booloader is a UEFI program that knows how to mount the ext4 filesystem, search it for a linux kernel image, load the image and execute it. 
+As already state above, the UEFI specification does not require that UEFI firmware know anything about EFL or how to mount and search ext4 filesystem for the kernel image. In the GNU/Linux world the booloader is a UEFI program that knows how to mount the ext4 filesystem, search it for a Linux kernel image, load the image and execute it. 
 
-In the case of the linux kernel the UEFI bootloader can be provided in at least two  ways:
+In the case of the Linux kernel the UEFI bootloader can be provided in at least two  ways:
 
 1. A `*.efi` bootloader program in a subdirectory on the `EFI System Partition` (source https://www.happyassassin.net/2014/01/25/uefi-boot-how-does-that-actually-work-then/). This is the approach used by Ubuntu. The possible bootloader programs include GRUB (which is also a bootmanager), SYSLINUX, ELILO.
 
-2. The kernel can be configured with a built-in UEFI bootloader. Officially called the EFISTUB (source: http://www.rodsbooks.com/efi-bootloaders/efistub.html and https://lkml.org/lkml/2011/10/17/81 and https://www.kernel.org/doc/Documentation/efi-stub.txt). In this case the linux kernel becomes a normal UEFI application and must reside on the ESP partition. Then it can be loaded by the default UEFI bootmanager directly.
+2. The kernel can be configured with a built-in UEFI bootloader. Officially called the EFISTUB (source: http://www.rodsbooks.com/efi-bootloaders/efistub.html and https://lkml.org/lkml/2011/10/17/81 and https://www.kernel.org/doc/Documentation/efi-stub.txt). In this case the Linux kernel becomes a normal UEFI application and must reside on the ESP partition. Then it can be loaded by the default UEFI bootmanager directly.
 
 Another source discussing the two methods of providing the UEFI OS loader: https://unix.stackexchange.com/questions/83744/why-do-most-distributions-chain-uefi-and-grub.
 
@@ -188,7 +188,7 @@ The details of how exactly the UEFI firmware executes this program are not 100% 
 
 
 The UEFI firmware also provides some arguments to the running program.
-Most importantly the UEFI firmware must provide the program with a pointer to EFI_SYSTEM_TABLE stuructue, which contains pointers to the EFI_RUNTIME_SERVICES and EFI_BOOT_SERVICES tables (source: https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf). These tables describe the capabilities of the system and serve as a standard library of functions. If the program was build using the GNU-EFI framework then its main function will be of the form:
+Most importantly the UEFI firmware must provide the program with a pointer to EFI_SYSTEM_TABLE structure, which contains pointers to the EFI_RUNTIME_SERVICES and EFI_BOOT_SERVICES tables (source: https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf). These tables describe the capabilities of the system and serve as a standard library of functions. If the program was build using the GNU-EFI framework then its main function will be of the form:
 ```
 EFI_STATUS efi_main (EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *systab);
 ```
@@ -202,15 +202,15 @@ When GRUB binary is executed it presents a menu to the user, so to be pedantic t
 
 #### (a) What type of filesystem is the kernel on?
 
-The linux kernel is normally stored either on the same partition as the user's home partition or it can be stored on a dedicated /boot partition. The filesystem depends on user choice, however the user would be smart to choose a filesystem that is supported by the GRUB bootloader. Otherwise his system might not boot. The most commonly used filesystem is ext4 or its older variant ext3.
+The Linux kernel is normally stored either on the same partition as the user's home partition or it can be stored on a dedicated /boot partition. The filesystem depends on user choice, however the user would be smart to choose a filesystem that is supported by the GRUB bootloader. Otherwise his system might not boot. The most commonly used filesystem is ext4 or its older variant ext3.
 
-However since linux version 3.3, the kernel has a EFI boot stub availiable. This means that the kernel can be a UEFI application, i.e. it has a stub that will be interpreted correctly by the UEFI firmware and that will bootload the kernel (source: https://blog.lse.epita.fr/cat/sustem/system-linux/index.html). In this case the kernel can reside on the ESP which uses a FAT32 filesystem. 
+However since Linux version 3.3, the kernel has a EFI boot stub available. This means that the kernel can be a UEFI application, i.e. it has a stub that will be interpreted correctly by the UEFI firmware and that will bootload the kernel (source: https://blog.lse.epita.fr/cat/sustem/system-linux/index.html). In this case the kernel can reside on the ESP which uses a FAT32 filesystem. 
 
 #### (b) What type(s) of filesystem does UEFI support?
 
 According to the UEFI specification every compliant UEFI firmware must support at least the FAT32 filesystem with which the ESP is formatted. The UEFI firmware must also support CD-ROM filesystems to boot from removable disks. The CD-ROM is assumed to contain an ISO-9660 file system and follow the CD-ROM "El Torito" format (source: https://uefi.org/sites/default/files/resources/UEFI_Spec_2_8_final.pdf).
 
-However the specification does not limit the namufacturers from supporting more filesystems than is necessary. The prime example being Apple, their UEFI firmware comes with support for the HFS+ filesystem. Additional drivers for other filesystems can be installed as UEFI programs. For example rEFInd boot manager can make use of additional drivers when searching for kernels (source: https://rodsbooks.com/refind/drivers.html).
+However the specification does not limit the manufacturers from supporting more filesystems than is necessary. The prime example being Apple, their UEFI firmware comes with support for the HFS+ filesystem. Additional drivers for other filesystems can be installed as UEFI programs. For example rEFInd boot manager can make use of additional drivers when searching for kernels (source: https://rodsbooks.com/refind/drivers.html).
 
 #### \(c\) What does the GRUB boot loader therefore have to do to load the kernel?
 
@@ -239,9 +239,9 @@ Essentially it tells GRUB to go look for the real config and specifies the parti
 Then GRUB has to mount the filesystem on the hard disk, find and parse its real config.
 The filesystem is typically ext4 and GRUB comes with support for ext4.
 
-The configuration file will tell GRUB what kernels are present on the system and their location. Then GRUB presents a bootmanager menu to me (to the user). After a certain kernel is choosen GRUB runs the commands specified in its config for this particular kernel that are necessary to load the kernel, the initrd and to execute it.
+The configuration file will tell GRUB what kernels are present on the system and their location. Then GRUB presents a bootmanager menu to me (to the user). After a certain kernel is chosen GRUB runs the commands specified in its config for this particular kernel that are necessary to load the kernel, the initrd and to execute it.
 
-The typical case for a GNU/Linux distribution is to keep the kernel as an ELF file stored in the /boot/ directory on the same filesystem where the grub config is stored (the actual kernel is compressed, but will decompress itself when executed). The filename used for the image is normally `bzImage` or `vmlinuz`. More detailes on the types of file used for the kernel image can be found at:
+The typical case for a GNU/Linux distribution is to keep the kernel as an ELF file stored in the /boot/ directory on the same filesystem where the grub config is stored (the actual kernel is compressed, but will decompress itself when executed). The filename used for the image is normally `bzImage` or `vmlinuz`. More details on the types of file used for the kernel image can be found at:
 
 1. https://unix.stackexchange.com/questions/5518/what-is-the-difference-between-the-following-kernel-makefile-terms-vmlinux-vml
 2. http://www.linfo.org/vmlinuz.html
@@ -287,7 +287,7 @@ To get more details on the steps see this link (its for BIOS/MBR, but applies to
 
 The linux kernel since version 3.3 provides a EFI_STUB that allows the kernel to be executed by UEFI firmware. (source: https://www.kernel.org/doc/Documentation/efi-stub.txt)
 
-The command to check if the kenrel was build with EFI_STUB support is shown below:
+The command to check if the kernel was build with EFI_STUB support is shown below:
 ```
 # cat /boot/config-5.0.0-23-generic | grep EFI_STUB
 CONFIG_EFI_STUB=y
@@ -296,16 +296,16 @@ CONFIG_EFI_STUB=y
 
 The kernel can be its own bootloader if executed by the UEFI firmware, 
 because the kernel image contains the code to bootload itself. The OS loader is also not required because all that is needed to boot the kernel is to configure the default UEFI bootmanager with the right path to the kernel image (of course the kernel image has to be placed on the ESP).
-So actually it is a reasonable setup to have just one subdirectory on the ESP pertition with just one file - the linux kernel with EFI_STUB.
+So actually it is a reasonable setup to have just one subdirectory on the ESP partition with just one file - the linux kernel with EFI_STUB.
 
 There is still an extra role GRUB can play in this configuration. 
 GRUB can act as a bootmanager, allowing the user to choose a kernel. After the user has decided what kernel to load, GRUB would simply trigger the UEFI firmware to execute the particular kernel `.efi`. 
 
-There are some existing bootmanagers such as rEFInd and systemd-boot, that are simply bootmanagers and specifically exclude the bootloader functionallity, expecting the kernel to have a working EFI_STUB. 
+There are some existing bootmanagers such as rEFInd and systemd-boot, that are simply bootmanagers and specifically exclude the bootloader functionality, expecting the kernel to have a working EFI_STUB. 
 
 Another source discussing the two methods of providing the UEFI OS loader: https://unix.stackexchange.com/questions/83744/why-do-most-distributions-chain-uefi-and-grub.
 
-Actually according to https://blog.lse.epita.fr/cat/sustem/system-linux/index.html the kernel version 2.5.64 used to provide a fake MBR and a bootloader as well, so the kernel image was comletely self-contained and could boot after being copied with dd to a floppy. Now they don't do crazy things like that anymore, however the EFI_STUB is a pretty sneaky hack for UEFI systems.
+Actually according to https://blog.lse.epita.fr/cat/sustem/system-linux/index.html the kernel version 2.5.64 used to provide a fake MBR and a bootloader as well, so the kernel image was completely self-contained and could boot after being copied with dd to a floppy. Now they don't do crazy things like that anymore, however the EFI_STUB is a pretty sneaky hack for UEFI systems.
 
 ### 7. How many parts (or stages) does GRUB have in an MBR system, and what is their task?
 
@@ -314,11 +314,11 @@ The original design of MBR expected that the bootloader could fit into the area 
 
 The first stage of the bootloader fits into the first sector on disk, its a really small part whose purpose is to load the stage 1.5 code to memory and start its execution. 
 
-The stage 1.5 code is placed in the (usually) unused space on the hard drive after the MBR partiton table, but before the first partition. 
+The stage 1.5 code is placed in the (usually) unused space on the hard drive after the MBR partition table, but before the first partition. 
 GPT partitioning and other (unusual) layouts do not provide this space.
 This is the core image of GRUB. It is built by the grub-mkimage program. Usually, it contains just enough modules to access `/boot/grub`, and load stage 2 code/data (including menu handling, the ability to load target operating systems, and so on) from the ext2/3/4 filesystem at run-time. The core image has to be kept small since the areas of disk where it must be installed are often as small as 32KB.
 
-Finally the stage 2 resides on an actual filesystem and is a collection of code and data with more GRUB functionallity. Such menu handling, the ability to load target operating systems (i.e. different bootloaders including chaining mechanisms), and so on.
+Finally the stage 2 resides on an actual filesystem and is a collection of code and data with more GRUB functionality. Such menu handling, the ability to load target operating systems (i.e. different bootloaders including chaining mechanisms), and so on.
 
 sources:
 1. https://www.gnu.org/software/grub/manual/grub/grub.html#BIOS-installation
@@ -329,15 +329,15 @@ sources:
 
 ### 8. Where are the different stages found on the disk?
 
-Below is a graphical presentation of the location of GRUB data on the hard drive from wikipedia:
+Below is a graphical presentation of the location of GRUB data on the hard drive from Wikipedia:
 ![](https://i.imgur.com/D71OcZ4.png)
 
 As already explained in the answer to question 7 above, the first stage of the bootloader fits into the first sector on disk, before the MBR partition table. 
 
-The stage 1.5 code is placed in the (usually) unused space on the hard drive after the MBR partiton table, but before the first partition. 
+The stage 1.5 code is placed in the (usually) unused space on the hard drive after the MBR partition table, but before the first partition. 
 GPT partitioning and other (unusual) layouts do not provide this space.
 
-Finally the stage 2 resides on an actual filesystem and is a collection of code and data with more GRUB functionallity.
+Finally the stage 2 resides on an actual filesystem and is a collection of code and data with more GRUB functionality.
 
 ### 9. Describe the entire startup process of Ubuntu 16.04 in the default installation. The subquestions below are leaders to help you along, they must be answered but by no means represent the entire startup process of Ubuntu.
 
@@ -345,9 +345,9 @@ Finally the stage 2 resides on an actual filesystem and is a collection of code 
 ##### (b) Where is the configuration kept for the started process?
 ##### \(c\) It starts multiple processes. How is the order of execution defined?
 
-I will describe the boot process of Ubuntu 18.04, because that is the distribution I have availiable.
+I will describe the boot process of Ubuntu 18.04, because that is the distribution I have available.
 
-The kernel image isnt a simple executable, but a compressed kernel image. Typically this is a zImage (compressed image, less than 512KB) or a bzImage (big compressed image, greater than 512KB). The bzImage is also called  vmlinuz on Ubuntu.
+The kernel image isn't a simple executable, but a compressed kernel image. Typically this is a zImage (compressed image, less than 512KB) or a bzImage (big compressed image, greater than 512KB). The bzImage is also called  vmlinuz on Ubuntu.
 
 At the head of this kernel image are a number of routines that do some minimal amount of hardware setup (like setting up the stack) and then extract the kernel. They include code for KASLR (Kernel Address Space Layout Randomization) relocation, decompression, ELF parsing, and relocation processing. Also included are functions for writing output to screen and serial device. These routines are in the `/boot/compressed/` directory of the kernel source for each architecture i.e. `/arch/x86/boot/compressed/`. Most of them are in `misc.c`.
 
@@ -382,7 +382,7 @@ In `rest_init` function a call is made to create a new kernel thread (with PID=1
 This can be seen on the screenshot below:
 ![](https://i.imgur.com/utz7w6d.png)
 
-The kernel also creates a few more kernel threads for system management and the idle thread. Finally the shceduler interrupts are enabled and the scheduler can provide pre-emptive multi-tasking.
+The kernel also creates a few more kernel threads for system management and the idle thread. Finally the scheduler interrupts are enabled and the scheduler can provide pre-emptive multi-tasking.
 
 The `kernel_init` is run as PID=1 and eventually tries to find and execute an init program provided on the filesystem. 
 
@@ -399,11 +399,11 @@ The details of userspace boot depend on the particular GNU/Linux distribution.
 
 In Ubuntu `/sbin/init` is a symbolic link to `/lib/systemd/systemd`.
 
-Systemd initialization instructions for each daemon are recorded in a declarative configuration file called unit file, ususally kept in `/usr/local/lib/systemd/system`. (source: https://unix.stackexchange.com/questions/224992/where-do-i-put-my-systemd-unit-file). Unit files include the feature of dependencies. Any unit may want or require one or more other units before it can run. These dependencies are set using directives Wants and Requires. systemd actually tries to run as many services in parallel as possible. To maintain coherence there are Before and After unit directives that mandate that a service is fully loaded before another one starts (this is not the same as Wants and Requires) (source: https://fedoramagazine.org/systemd-unit-dependencies-and-order/).
+Systemd initialization instructions for each daemon are recorded in a declarative configuration file called unit file, usually kept in `/usr/local/lib/systemd/system`. (source: https://unix.stackexchange.com/questions/224992/where-do-i-put-my-systemd-unit-file). Unit files include the feature of dependencies. Any unit may want or require one or more other units before it can run. These dependencies are set using directives Wants and Requires. systemd actually tries to run as many services in parallel as possible. To maintain coherence there are Before and After unit directives that mandate that a service is fully loaded before another one starts (this is not the same as Wants and Requires) (source: https://fedoramagazine.org/systemd-unit-dependencies-and-order/).
 
 `Require=` is for stating dependencies. `Wants=` is a weaker version of Require=. `After=` is for "loose coupling", and a service with such a statement would still start even if the service in the After= directive is not started. A Require= directive enforces that a particular service must be started before this service can be started.
 
-systemd also has the notion of targets. These are used analoguously to runlevels in the sysvinit. (i.e. a linux router does not need to boot into a graphical interface, it can stop at multi-user target).
+systemd also has the notion of targets. These are used analogously to runlevels in the sysvinit. (i.e. a linux router does not need to boot into a graphical interface, it can stop at multi-user target).
 
 The command below shows the match between runlevels and systemd targets as understood by systemd:
 ```
@@ -449,7 +449,7 @@ Color legend: black     = Requires
 ```
 ![](https://i.imgur.com/dhqi6ts.png)
 
-Going deeped into the configuration, lets understand which parts are critical for system boot and which are optional.
+Going deeper into the configuration, lets understand which parts are critical for system boot and which are optional.
 
 First of all as already stated Ubuntu uses NetworkManager for its user interface (essentially to configure the connection information such as WiFi SSID/password, ethernet preference if you have two ethernet cables connected, etc.). The alternative which is used on Ubuntu server and cloud is networkd. Because the question concerns only the Desktop, we can ignore any networkd unit files.
 
@@ -457,7 +457,7 @@ Then there are three main targets for networking:
 
 1. network.target only indicates that the network management stack is up after it has been reached. Mainly used to maintain coherent order of services at shutdown.
 
-2. network-online.target is a target that actively waits until the nework is "up", which usually indicates a configured, routable IP address of some kind.
+2. network-online.target is a target that actively waits until the network is "up", which usually indicates a configured, routable IP address of some kind.
 
 3. network-pre.target is a target that may be used to order services before any network interface is configured.
 
@@ -473,12 +473,12 @@ Below is a screenshot revisiting the services hierarchy showing only the service
 
 (The graph was generated by using `neato` tool from the graphviz package instead of the usual `dot` tool and by preventing objects from overlapping as described here: https://stackoverflow.com/questions/1039785/prevent-overlapping-records-using-graphviz-and-neato)
 
-Much better! Now some logic can actually be infered. 
+Much better! Now some logic can actually be inferred. 
 The color legend is the same: green arrow = After, grey arrow = Wants, red arrow = Conflicts.
 
 This graph pretty much explains how networking is setup on Ubuntu and how the installed services depend on the network state. For example:
 
-1. `docker.service` which provides the docker daemon and network connectivity for containers. This service has a grey arrow pointng to network-online.target which means it has a `Wants=network-online.target` directive. Which means that the docker.service will not start unless the network-online.target has been reached. The docker.service also has an `After=network-online.target` directive, indicated by the green arrow. This means if the docker.service was to start it should not run before or in parallel with `network-online.target`. Which of course it can not because one is a service and the other is a target.
+1. `docker.service` which provides the docker daemon and network connectivity for containers. This service has a grey arrow pointing to network-online.target which means it has a `Wants=network-online.target` directive. Which means that the docker.service will not start unless the network-online.target has been reached. The docker.service also has an `After=network-online.target` directive, indicated by the green arrow. This means if the docker.service was to start it should not run before or in parallel with `network-online.target`. Which of course it can not because one is a service and the other is a target.
 2. The `network-online.target` itself Wants=NetworkManager-wait-online.service, which just runs `/usr/bin/nm-online` in the background to check connectivity. Also the network-online.target Wants the network.target, i.e. the interfaces must be up and ready before the network can go online, which of course makes sense. It also must happen After=ifup@eno1.service which is actually the service that setsup the eno1 ethernet interface on my machine. Finally it wants the networking.service which is the service that triggers the interfaces to be brought up.
 
 To understand what each service does I checked its status with `systemctl status *` and sometimes took a look at the service unit file to find what program it was actually executing.
