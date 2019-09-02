@@ -341,9 +341,11 @@ Finally the stage 2 resides on an actual filesystem and is a collection of code 
 
 ### 9. Describe the entire startup process of Ubuntu 16.04 in the default installation. The subquestions below are leaders to help you along, they must be answered but by no means represent the entire startup process of Ubuntu.
 
-#### (a) What is the first process started by the kernel?
-#### (b) Where is the configuration kept for the started process?
-#### \(c\) It starts multiple processes. How is the order of execution defined?
+##### (a) What is the first process started by the kernel?
+##### (b) Where is the configuration kept for the started process?
+##### \(c\) It starts multiple processes. How is the order of execution defined?
+
+I will describe the boot process of Ubuntu 18.04, because that is the distribution I have availiable.
 
 The kernel image isnt a simple executable, but a compressed kernel image. Typically this is a zImage (compressed image, less than 512KB) or a bzImage (big compressed image, greater than 512KB). The bzImage is also called  vmlinuz on Ubuntu.
 
@@ -362,7 +364,7 @@ Below is a simplified view of the kernel boot process (and slightly outdated, be
 
 The `start_kernel` routine in `/init/main.c` is where the non-architecture specific part of the kernel boot begins.
 
-The kernel itself calls a long list of initialisation functions such as setting up interrupts, enabling the A20 line on x86 processors, configuring GDT table, further memory configuration, setting up virtual memory. In particular the kernel mounts the initial RAM disk (initrd) which serves as a temporary root file system. It contains the all the necessary modules (which for example interact with peripherals) that are needed for the kernel to fully boot without having to mount any physical disks. Then the kernel scheduler is initialised.
+The kernel itself calls a long list of initialisation functions such as setting up interrupts, enabling the A20 line on x86 processors, configuring GDT table, further memory configuration, setting up virtual memory. In particular the kernel mounts the initial RAM disk (initrd) which serves as a temporary root file system. It contains the all the necessary modules (which for example interact with peripherals) that are needed for the kernel to fully boot without having to mount any physical disks. The kernel process scheduler is initialised.
 
 After the kernel is finally booted, the initrd filesystem is unmounted and the real root filesystem from one of the partitions is mounted. The name of the partition to mount normally gets passed to the kernel as a command line argument `root=` by the bootloader.
 
@@ -389,7 +391,7 @@ This can be seen on the screenshot below (inside `kernel_init`):
 
 (source: https://github.com/torvalds/linux/blob/master/init/main.c and https://developer.ibm.com/articles/l-linuxboot/).
 
-The init process is left to continue booting the user environment in user space. The job of init is to load all services and user-space tools, mount all partitions listed in /etc/fstab. And finally to present the user with a login screen for the freshly booted system.
+The init process is left to continue booting the user environment in user space. The job of init in Ubuntu is to load all services and user-space tools, mount all partitions listed in /etc/fstab, configure networking. And finally to present the user with a login screen for the freshly booted system.
 
 The details of userspace boot depend on the particular GNU/Linux distribution.
 
@@ -397,9 +399,9 @@ The details of userspace boot depend on the particular GNU/Linux distribution.
 
 In Ubuntu `/sbin/init` is a symbolic link to `/lib/systemd/systemd`.
 
-Systemd initialization instructions for each daemon are recorded in a declarative configuration file called unit file. Unit files include the feature of dependencies. Any unit may want or require one or more other units before it can run. These dependencies are set using directives Wants and Requires. systemd actually tries to run as many services in parallel as possible. To maintain coherence there are Before and After unit directives that mandate that a service is fully loaded before another one starts.
+Systemd initialization instructions for each daemon are recorded in a declarative configuration file called unit file, ususally kept in `/usr/local/lib/systemd/system`. (source: https://unix.stackexchange.com/questions/224992/where-do-i-put-my-systemd-unit-file). Unit files include the feature of dependencies. Any unit may want or require one or more other units before it can run. These dependencies are set using directives Wants and Requires. systemd actually tries to run as many services in parallel as possible. To maintain coherence there are Before and After unit directives that mandate that a service is fully loaded before another one starts (this is not the same as Wants and Requires) (source: https://fedoramagazine.org/systemd-unit-dependencies-and-order/).
 
-(source: https://fedoramagazine.org/systemd-unit-dependencies-and-order/)
+`Require=` is for stating dependencies. `Wants=` is a weaker version of Require=. `After=` is for "loose coupling", and a service with such a statement would still start even if the service in the After= directive is not started. A Require= directive enforces that a particular service must be started before this service can be started.
 
 systemd also has the notion of targets. These are used analoguously to runlevels in the sysvinit. (i.e. a linux router does not need to boot into a graphical interface, it can stop at multi-user target).
 
@@ -423,12 +425,60 @@ Below is a screenshot of the last couple of services that were activated:
 
 The dependency hierarchy of services can be created with the command: `systemd-analyze dot | dot -Tsvg > dotmade.svg`
 
-Which turns out to be useless if you try to render all the services at once as shown on the screenshot of a small part of graph below. However it can be still useful to understand the dependency hierarchy of individual services (you have to edit the `dot` file generated by systemd-analyze)
+Which turns out to be useless if you try to render all the services at once as shown on the screenshot below. However it can still be useful to understand the dependency hierarchy of individual services (you have to edit the `dot` file generated by systemd-analyze)
 ![](https://i.imgur.com/RhPQLcN.png)
 
 (source: https://wiki.archlinux.org/index.php/Systemd and https://www.freedesktop.org/software/systemd/man/systemd-analyze.html)
 
 The end target for systemd in Ubuntu is graphical.target. Its unit file being: /usr/lib/systemd/system/graphical.target.
 
-Getting to graphical.target means that all the services in the system such as mounting hard drives, configuring networking, etc. were successful and the Ubuntu display manager Unity shows a login prompt on tty2 (for some strange reason its tty2, instead of tty1 or tty7).
+Getting to graphical.target means that all the services in the system such as mounting hard drives, configuring networking, etc. were successful and the Ubuntu display manager Unity shows a login prompt on tty2 (for some strange reason its tty2, instead of tty1 or tty7 on my system).
 
+
+### 10. To understand the workings of daemons in Ubuntu, we are going to take a closer look at one aspect of the booting process: networking. Please describe the workings of Ubuntu desktop here (Ubuntu server networking is actually simpler):
+
+Ubuntu uses NetworkManager as the user application for network configuration. Howerver network setup is much more involved than just using the NetworkManager.
+
+Below is the modified output of `systemd-analyze dot` which includes only the network related services and their interrelations. The color legend is:
+```
+Color legend: black     = Requires
+              dark blue = Requisite
+              dark grey = Wants
+              red       = Conflicts
+              green     = After
+```
+![](https://i.imgur.com/dhqi6ts.png)
+
+Going deeped into the configuration, lets understand which parts are critical for system boot and which are optional.
+
+First of all as already stated Ubuntu uses NetworkManager for its user interface (essentially to configure the connection information such as WiFi SSID/password, ethernet preference if you have two ethernet cables connected, etc.). The alternative which is used on Ubuntu server and cloud is networkd. Because the question concerns only the Desktop, we can ignore any networkd unit files.
+
+Then there are three main targets for networking:
+
+1. network.target only indicates that the network management stack is up after it has been reached. Mainly used to maintain coherent order of services at shutdown.
+
+2. network-online.target is a target that actively waits until the nework is "up", which usually indicates a configured, routable IP address of some kind.
+
+3. network-pre.target is a target that may be used to order services before any network interface is configured.
+
+source: https://www.freedesktop.org/wiki/Software/systemd/NetworkTarget/
+
+The unit file that raises the network interfaces is networking.service as seen below (note the `ExecStart=/sbin/ifup` line):
+![](https://i.imgur.com/Raq6JPk.png)
+
+My system came preinstalled with Netplan. Which is an Ubuntu utility for managing network interfaces, but then I decided to disable netplan and switched to the more common ifupdown scripts (ifup and ifdown were not actually installed on Ubuntu 18.04 by default).
+
+Below is a screenshot revisiting the services hierarchy showing only the services directly related to the 3 targets mentioned above: 
+![](https://i.imgur.com/EjbIBTj.png)
+
+(The graph was generated by using `neato` tool from the graphviz package instead of the usual `dot` tool and by preventing objects from overlapping as described here: https://stackoverflow.com/questions/1039785/prevent-overlapping-records-using-graphviz-and-neato)
+
+Much better! Now some logic can actually be infered. 
+The color legend is the same: green arrow = After, grey arrow = Wants, red arrow = Conflicts.
+
+This graph pretty much explains how networking is setup on Ubuntu and how the installed services depend on the network state. For example:
+
+1. `docker.service` which provides the docker daemon and network connectivity for containers. This service has a grey arrow pointng to network-online.target which means it has a `Wants=network-online.target` directive. Which means that the docker.service will not start unless the network-online.target has been reached. The docker.service also has an `After=network-online.target` directive, indicated by the green arrow. This means if the docker.service was to start it should not run before or in parallel with `network-online.target`. Which of course it can not because one is a service and the other is a target.
+2. The `network-online.target` itself Wants=NetworkManager-wait-online.service, which just runs `/usr/bin/nm-online` in the background to check connectivity. Also the network-online.target Wants the network.target, i.e. the interfaces must be up and ready before the network can go online, which of course makes sense. It also must happen After=ifup@eno1.service which is actually the service that setsup the eno1 ethernet interface on my machine. Finally it wants the networking.service which is the service that triggers the interfaces to be brought up.
+
+To understand what each service does I checked its status with `systemctl status *` and sometimes took a look at the service unit file to find what program it was actually executing.
