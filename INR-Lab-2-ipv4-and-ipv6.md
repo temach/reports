@@ -1,5 +1,10 @@
 # INR Lab 2 - IPv4 & IPv6
 
+#### Artem Abramov SNE19
+
+May I suggest viewing this document in your browser at address: 
+https://github.com/temach/innopolis_university_reports/blob/master/INR-Lab-2-ipv4-and-ipv6.md
+Unfortunately rendering the document to PDF breaks some long lines and crops images.
 
 ## Task 1 - Ports and Protocols
 
@@ -17,7 +22,7 @@ The network setup for this lab:
 Source of information for everything related to nmap: https://nmap.org/book/toc.html
 
 
-### 1. Check the open ports and listening Unix sockets against ssh and http on Admin and Web respectivly. Hint: use lsof, netstat
+### 1. Check the open ports and listening Unix sockets against ssh and http on Admin and Web respectively. Hint: use lsof, netstat
 
 Screenshot of listening ports on Admin (only ssh) is below:
 
@@ -42,7 +47,7 @@ The open ports and their services are:
 5. 2000 - cisco-sccp 
 6. 8291 - unknown service
 
-The FTP, telnet, cisco-sccp and unknown service are the default services started by MikroTik router that allow to interact with it. Because the gateway has a forwarding rule the SSH is Admin responce and the HTTP is the Web responce to the nmap probes.
+The FTP, telnet, cisco-sccp and unknown service are the default services started by MikroTik router that allow to interact with it. Because the gateway has a forwarding rule the SSH is Admin response and the HTTP is the Web response to the nmap probes.
 
 
 ### 3. A gateway should be transparent, you should not see any port that is not specifically forwarded. Adjust your firewall rules to make this happen. Disable any unnecessary services and scan again.
@@ -195,7 +200,7 @@ I ran wireshark on the connection between ether3 and virbr0 and requested the ht
 
 #### Can you see what is being sent?
 
-There is a great wealth of information. Most of it is quite self-explanatory. Greenish color highlights the lines that directly relate to the HTTP protocol, i.e. to the request for the web page from the host. First there is a three way TCP handshake, after that the connection is established an a GET request is send by the browser to the server. The browser is at the address 192.168.122.1 and the server is at address 192.168.122.189 on the virbr0 virtual bridge (with network 192.168.122.0/24). The first HTTP GET request must have specified the `keep-alive` header because even though there are a total of 3 HTTP requests and responces the TCP three way handshake is only performed once (at the beginning). We can also see some TCP traffic that is unrelated to the web page request.
+There is a great wealth of information. Most of it is quite self-explanatory. Greenish color highlights the lines that directly relate to the HTTP protocol, i.e. to the request for the web page from the host. First there is a three way TCP handshake, after that the connection is established an a GET request is send by the browser to the server. The browser is at the address 192.168.122.1 and the server is at address 192.168.122.189 on the virbr0 virtual bridge (with network 192.168.122.0/24). The first HTTP GET request must have specified the `keep-alive` header because even though there are a total of 3 HTTP requests and responses the TCP three way handshake is only performed once (at the beginning). We can also see some TCP traffic that is unrelated to the web page request.
 
 #### What kind of information can you get from this?
 
@@ -203,7 +208,7 @@ We know what packets are travelling through the network. We know their size, the
 
 ### What do the headers mean?
 
-The headers describe how the data that is put on the wire is seen by the different layers of the OSI model and the programs working at thouse different layers. So an ethernet switch only concerns itself with the Frame and Ethernet layer which contain the MAC address of where to send the packet. A router (or an end machine) in addition to interpereting the Frame/Ethernet will also analyse the IPv4 header to find the destination IP and port number. The end computer's TCP/IP stack does the job of interpreting all the lower layers and additionally the TCP header. Finally in case of a Web server the nginx will interpret the HTTP header.
+The headers describe how the data that is put on the wire is seen by the different layers of the OSI model and the programs working at those different layers. So an ethernet switch only concerns itself with the Frame and Ethernet layer which contain the MAC address of where to send the packet. A router (or an end machine) in addition to interpreting the Frame/Ethernet will also analyse the IPv4 header to find the destination IP and port number. The end computer's TCP/IP stack does the job of interpreting all the lower layers and additionally the TCP header. Finally in case of a Web server the nginx will interpret the HTTP header.
 
 
 ### 2. SSH to the Admin from the outside and capture the traffic (make sure to start capturing before connecting to the server)
@@ -224,13 +229,13 @@ As already stated, we can see what machines are communicating and how long their
 
 The server provided a list of key generation/exchange algorithms and a list of encryption algorithms for the client to choose. 
 
-In this case the client and server prefered to use (as can be seen in the header of each SSHv2 packet)
+In this case the client and server preferred to use (as can be seen in the header of each SSHv2 packet)
 
 ```
 encryption: chacha20-poly1305@openssh.com
 ```
 
-That is the stream cypher ChaCha20 (https://en.wikipedia.org/wiki/Salsa20) using Poly1305 (https://en.wikipedia.org/wiki/Poly1305) for verification.
+That is the stream cipher ChaCha20 (https://en.wikipedia.org/wiki/Salsa20) using Poly1305 (https://en.wikipedia.org/wiki/Poly1305) for verification.
 
 
 ### 3. Configure Burp Suite as a proxy on your machine and intercept your HTTP traffic.
@@ -257,7 +262,7 @@ At this moment Burp notices the request and we just let it continue by pressing 
 
 ![](../../../Pictures/Burp Suite Community Edition v2.1.02 - Temporary Project_149.png)
 
-Sucessful completion:
+Successful completion:
 
 ![](../../../Pictures/artem@artem-209-HP-EliteDesk-800-G1-SFF: ~-BurpSuiteCommunity_150.png)
 
@@ -332,4 +337,4 @@ Wireshark was set to capturing traffic between Web e0 interface and the "Externa
 
 ![](../../../Pictures/artem_abramov_cia_dump_ipv6_http.pcapng [Web Ethernet0 to External Ethernet0]_167.png)
 
-There is a new type of traffic ICMPv6 mixed with IPv4 traffic, which serves for Neighbour solicitation and advertisement, i.e. discovery service. The request to the server from admin was made with `curl` and was completed successfuly. The request uses IPv6 addresses.
+There is a new type of traffic ICMPv6 mixed with IPv4 traffic, which serves for Neighbour solicitation and advertisement, i.e. discovery service. The request to the server from admin was made with `curl` and was completed successfully. The request uses IPv6 addresses.
