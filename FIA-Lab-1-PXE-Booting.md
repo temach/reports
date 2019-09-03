@@ -18,16 +18,16 @@ https://github.com/temach/innopolis_university_reports/blob/master/INR-Lab-1-Net
 I created a new virtual machine. Installed Kali Linux on it, connected it to the cloud appliance in GNS3 (this allows it to access the internet) and configured its networking. The cloud appliance is configured to use virbr0 virtual network bridge. This bridge is created after installing libvirt. Libvirt also sets up DHCP and NAT access to the internet for devices connected to the bridge.
 
 Screenshot showing the the virtual network topology is below.
-![](https://i.imgur.com/shq6ZOM.png)
+![](FIA-Lab-1-PXE-Booting.assets/shq6ZOM.png)
 
 Screenshot of the Kali Linux installer is below.
-![](https://i.imgur.com/z4QwSPF.png)
+![](FIA-Lab-1-PXE-Booting.assets/z4QwSPF.png)
 
 Screenshot of the GNS3 cloud appliance configuration is shown below.
-![](https://i.imgur.com/dsanzDj.png)
+![](FIA-Lab-1-PXE-Booting.assets/dsanzDj.png)
 
 For reference below is a screenshot showing the version of Kali Linux guest that was used for this lab.
-![](https://i.imgur.com/8ORez1h.png)
+![](FIA-Lab-1-PXE-Booting.assets/8ORez1h.png)
 
 With everything ready its now important to understand what is PXE and the details of how it works. In my opinion the best overview is presented in the document that describes PXE, source: http://www.pix.net/software/pxeboot/archive/pxespec.pdf
 
@@ -39,10 +39,10 @@ separately, source: https://debian-administration.org/article/478/Setting_up_a_s
 
 
 Small note: at this moment I decided to setup the ssh server to the guest OS, because working with it through VNC was not very practical. Through VNC I allowed root login via ssh with just a password, this is shown on the screenshot below.
-![](https://i.imgur.com/hHYiUkf.png)
+![](FIA-Lab-1-PXE-Booting.assets/hHYiUkf.png)
 
 Screenshot below shows the ssh server on the Kali Linux guest working.
-![](https://i.imgur.com/Fj9O6Ci.png)
+![](FIA-Lab-1-PXE-Booting.assets/Fj9O6Ci.png)
 
 After this the console access to the guest was working. The next step was to install the packages.
 
@@ -51,7 +51,7 @@ However there was a problem with installing the packages!
 Because I installed the system from a CD image, the apt sources were not configured properly. In other words the system failed to find packages, because it was only using the apt repository that came with the CD. 
 
 Below is a screenshot showing broken /etc/apt/sources.list configuration.
-![](https://i.imgur.com/oFq7WdD.png)
+![](FIA-Lab-1-PXE-Booting.assets/oFq7WdD.png)
 
 
 The next step was adding the default Kali Linux repository: 
@@ -68,10 +68,10 @@ The information on how to setup dnsmasq was mostly taken from two links:
 2. Blog post (viewed from Internet Archive) https://web.archive.org/web/20170710081151/https://blogging.dragon.org.uk/howto-setup-a-pxe-server-with-dnsmasq/
 
 Edit the dnsmasq config to look as on the screenshot below:
-![](https://i.imgur.com/Vg1ulcY.png)
+![](FIA-Lab-1-PXE-Booting.assets/Vg1ulcY.png)
 
 Create the TFTP directory to match what was specified in dnsmasq config. Then restart dnsmasq and check that it found TFTP directory and config is ok, as show in screenshot below.
-![](https://i.imgur.com/IDPl2VU.png)
+![](FIA-Lab-1-PXE-Booting.assets/IDPl2VU.png)
 
 Because Kali Linux is easier to work with than Ubuntu, this lab will use booting to Kali Linux with PXE as an example. The next step is to actually get the system files that are used by the Kali Linux distribution. 
 
@@ -89,7 +89,7 @@ http://http.kali.org/dists/kali-rolling/main/installer-amd64/current/images/netb
 ```
 
 Below is a screenshot showing the resulting tftpboot directory.
-![](https://i.imgur.com/9aAFzHt.png)
+![](FIA-Lab-1-PXE-Booting.assets/9aAFzHt.png)
 
 There is the option to tweak boot files in `debian-installer/amd64/boot-screens/`, if you want to configure the installer.
 
@@ -101,32 +101,32 @@ We do not know the topology of the network, is there is at least one more DHCP s
 ### Create yet another virtual machine to proceed with acceptance testing of your installation.
 
 Create another VM in GNS3. The config of the VM is shown in the screenshot below. Note that the boot priority is set to Network.
-![](https://i.imgur.com/vcALdRj.png)
+![](FIA-Lab-1-PXE-Booting.assets/vcALdRj.png)
 
 I also removed the CD ISO image from the VM config as shown on the screenshot below.
-![](https://i.imgur.com/0sFHxxn.png)
+![](FIA-Lab-1-PXE-Booting.assets/0sFHxxn.png)
 
 The last step was disconnecting the DHCP that was provided by libvirt on virbr0. Now the Kali Linux box should provide DHCP service on the network. In fact the network was also isolated from the internet.
 
 The resulting network topology is shown on the screenshot below.
-![](https://i.imgur.com/UYgHL93.png)
+![](FIA-Lab-1-PXE-Booting.assets/UYgHL93.png)
 
 On the first boot the dnsmasq server was not running, so the "no-os" machine failed with the error below.
-![](https://i.imgur.com/0X7aSp4.png)
+![](FIA-Lab-1-PXE-Booting.assets/0X7aSp4.png)
 
 Then I realised that dnsmasq might be conflicting with Network Manager on the PXE server. So I logged in and disabled Network Manager service. The next part was configuring a static IP for the eth0 interface, so that the interface was up and ready for dnsmasq to use.
 
 Below is a screenshot of the eth0 interface config on Kali Linux PXE server.
-![](https://i.imgur.com/CRCE5dT.png)
+![](FIA-Lab-1-PXE-Booting.assets/CRCE5dT.png)
 
 After the PXE server booted I tried booting "no-os" machine again.
 This time the boot was successful and the welcoming screen was displayed!
 
 Below is the screenshot of the welcoming screen.
-![](https://i.imgur.com/xzqykHO.png)
+![](FIA-Lab-1-PXE-Booting.assets/xzqykHO.png)
 
 Net installer uses a menu as show on the screenshot below.
-![](https://i.imgur.com/chPQuNv.png)
+![](FIA-Lab-1-PXE-Booting.assets/chPQuNv.png)
 
 
 ## Task 2 - Questions
@@ -136,7 +136,7 @@ Net installer uses a menu as show on the screenshot below.
 UEFI PXE booting refers to booting over PXE by clients that use UEFI instead of Legacy BIOS. UEFI PXE differs from legacy PXE in that the client uses UEFI module to interact with the PXE server. If the client uses legacy BIOS then the code to interact with the PXE server would normally be provided as a Network Interface Card (NIC) BIOS extension. The PXE server does not care to which type of client the service is provided. However to handle both types of clients the server must provide a binary to execute on a legacy BIOS client (such as pxelinux) and an alternative binary (such as elilo) to execute on UEFI clients. The clients will themselves decide which binary they need.
 
 PXE booting works as show in the diagram below:
-![](https://i.imgur.com/QRwhow4.png)
+![](FIA-Lab-1-PXE-Booting.assets/QRwhow4.png)
 
 The booting machine tries to discover services using the DHCP protocol. The server responds with a DHCP packet that contains extra information about PXE booting. The client can use this information to access the TFTP server. 
 After downloading the files from TFTP server and verifying them, the client can execute them to start the boot or install process.
@@ -154,7 +154,7 @@ GPT is the modern alternative to MBR. A specification describing how to divide d
 
 Below is a diagram of an example disk that is using GPT.
 
-![](https://i.imgur.com/t3xOXhB.png)
+![](FIA-Lab-1-PXE-Booting.assets/t3xOXhB.png)
 
 The layout can be described as follows:
 
