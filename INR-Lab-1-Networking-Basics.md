@@ -99,12 +99,12 @@ artem adm cdrom sudo dip plugdev lpadmin sambashare kvm ubridge libvirt wireshar
 
 Summary of the GNS3 setup is below.
 
-![](https://i.imgur.com/Q9nUeJS.png)
+![](INR-Lab-1-Networking-Basics.assets/Q9nUeJS.png)
 
 
 Giving the project a name.
 
-![](https://i.imgur.com/hkrXkch.png)
+![](INR-Lab-1-Networking-Basics.assets/hkrXkch.png)
 
 Because the template for Ubuntu Cloud Guest was not pre-installed I had to download and configure it.  
 
@@ -118,23 +118,23 @@ From then on I just followed the menus.
 (In the process I had to download the .iso images for the supported Ubuntu version from this link https://docs.gns3.com/appliances/ubuntu-cloud.html#appliance_supported)
 
 Screenshot showing possible versions of the Ubuntu Cloud Guest appliance.
-![](https://i.imgur.com/nAZoNcm.png)
+![](INR-Lab-1-Networking-Basics.assets/nAZoNcm.png)
 
 Screenshot of the configuration summary for Ubuntu Cloud Guest.
-![](https://i.imgur.com/LAE44jD.png)
+![](INR-Lab-1-Networking-Basics.assets/LAE44jD.png)
 
 To get familiar with the GNS3 interface I used the getting started instructions from the GNS3 website. Two particularly useful links were:
 1. Example connecting to the Internet: https://docs.gns3.com/1vFs-KENh2uUFfb47Q2oeSersmEK4WahzWX-HrMIMd00/index.html
 2. Index of Getting Started documentation: https://docs.gns3.com/1FFbs5hOBbx8O855KxLetlCwlbymTN8L1zXXQzCqfmy4/index.html
 
 Screenshot of the created appliance instance.
-![](https://i.imgur.com/gEid5pc.png)
+![](INR-Lab-1-Networking-Basics.assets/gEid5pc.png)
 
 The final step was to check that the Ubuntu guest can start.
 The machine indeed booted successfully and presented a login prompt. Although it spend about 30 seconds waiting for a start job on boot, the exact job description was 'A start job is running for Wait for Network to be Configured (15s / no limit)'
 
 Screenshot of the console prompt from Ubuntu cloud guest.
-![](https://i.imgur.com/SAchA6Q.png)
+![](INR-Lab-1-Networking-Basics.assets/SAchA6Q.png)
 
 ### 3. What are the different ways you can configure internet access in GNS3?
 
@@ -148,18 +148,18 @@ In other words this means that when the GNS3 guest is using the wire the host ca
 First of all I changed the netplan configuration inside the Ubuntu cloud guest to match the network setup of the host. Source: https://www.howtoforge.com/linux-basics-set-a-static-ip-on-ubuntu
 
 Screenshot of the Ubuntu cloud network config.
-![](https://i.imgur.com/HFCoxG9.png)
+![](INR-Lab-1-Networking-Basics.assets/HFCoxG9.png)
 
 After that the network still appeared to be broken. The next step to try was reverting the network configuration in GNS3 to legacy mode. This appeared to have fixed the issue.
 
 Screenshot of the GNS3 network configuration for Ubuntu guest.
-![](https://i.imgur.com/WWvyndh.png)
+![](INR-Lab-1-Networking-Basics.assets/WWvyndh.png)
 
 Screenshot of successful ping from inside the Ubuntu guest.
-![](https://i.imgur.com/huW3YuO.png)
+![](INR-Lab-1-Networking-Basics.assets/huW3YuO.png)
 
 Screenshot of the resulting topology created in GNS3 to test the Ethernet cloud connection.
-![](https://i.imgur.com/weuAgBR.png)
+![](INR-Lab-1-Networking-Basics.assets/weuAgBR.png)
 
 
 #### 2. TAP Cloud connection
@@ -169,7 +169,7 @@ Screenshot of the resulting topology created in GNS3 to test the Ethernet cloud 
 I created the TAP interface on the host using the Network Manager CLI as described in this source: https://mail.gnome.org/archives/networkmanager-list/2016-January/msg00049.html
 
 Screenshot showing the configuration of the TAP interface on the host.
-![](https://i.imgur.com/ijlpzps.png)
+![](INR-Lab-1-Networking-Basics.assets/ijlpzps.png)
 
 To test this connection I created a new GNS3 project.
 I was extremely  unsatisfied with Ubuntu Cloud guest, so I diverged from the rules and experimented with using Alpine-Linux and Kali-Linux as a guest. Eventually I settled on the Kali-Linux guest.
@@ -182,10 +182,10 @@ A serious downside is that Kali must be installed by hand on each machine in the
 The next step was creating a Kali guest in GNS3 and configuring its network and default gateway to suit the TAP interface on the host.
 
 Screenshot of the network configuration on the Kali guest.
-![](https://i.imgur.com/1wjscuQ.png)
+![](INR-Lab-1-Networking-Basics.assets/1wjscuQ.png)
 
 Screenshot of the topology created in GNS3.
-![](https://i.imgur.com/bprmQBf.png)
+![](INR-Lab-1-Networking-Basics.assets/bprmQBf.png)
 
 Then I checked that packet forwarding was enabled on the host.
 ```
@@ -215,7 +215,7 @@ default via 188.130.155.33 dev eno1 onlink
 After the iptables rule was applied the Kali guest could ping google.com and communication between the guest and the host was also possible.
 
 Screenshot showing pings from the host to the Kali guest, from the Kali guest to the host and from the Kali guest to google.com.
-![](https://i.imgur.com/z8CP3CH.png)
+![](INR-Lab-1-Networking-Basics.assets/z8CP3CH.png)
 
 
 #### 3. Linux Bridge and NAT Cloud connection 
@@ -237,15 +237,15 @@ $ virsh net-edit default
 source: https://www.bernhard-ehlers.de/blog/2017/07/11/gns3-cloud-linux.html
 
 Just following along with the default configuration, as shown on the screenshot below:
-![](https://i.imgur.com/15wDHuU.png)
+![](INR-Lab-1-Networking-Basics.assets/15wDHuU.png)
 
 The next step editing configuration of the GNS3 cloud to use virbr0 as its Ethernet interface. To be able to select the non-physical interface the box "Show special Ethernet interfaces" had to be ticked. Screenshot of configuration for the cloud is below.
-![](https://i.imgur.com/pgazhp5.png)
+![](INR-Lab-1-Networking-Basics.assets/pgazhp5.png)
 
 After that connection inside the Kali guest started working. 
 The IP allocation on the side of Kali guest was done automatically because libvirt provides DHCP.
 The screenshot below shows that the Kali guest connect to the virbr0 bridge by a newly created virtual interface "gns3tap0-2".
-![](https://i.imgur.com/bg8exam.png)
+![](INR-Lab-1-Networking-Basics.assets/bg8exam.png)
 
 The bridge does not have a physical interface connected to it, however traffic flow and NAT is handled by iptable rules.
 ```
@@ -261,10 +261,10 @@ Chain POSTROUTING (policy ACCEPT 17296 packets, 1089K bytes)
 source: https://stackoverflow.com/questions/37536687/what-is-the-relation-between-docker0-and-eth0 (and https://serverfault.com/questions/891208/why-is-a-physical-interface-not-part-of-the-docker-gwbridge)
 
 Screenshot of ping working in Kali guest.
-![](https://i.imgur.com/YVOFBS0.png)
+![](INR-Lab-1-Networking-Basics.assets/YVOFBS0.png)
 
 Screenshot of the topology created in GNS3.
-![](https://i.imgur.com/1yRojYi.png)
+![](INR-Lab-1-Networking-Basics.assets/1yRojYi.png)
 
 ## Task 2 - Switching
 
@@ -274,16 +274,16 @@ To create this topology I used a pair of Kali Linux CLI guests (without X server
 The first step step was to setup the cloud connection. For this I used a bridged network with NAT as suggested by the diagram.
 
 Screenshot of the initial topology created in GNS3.
-![](https://i.imgur.com/MSgpqDf.png)
+![](INR-Lab-1-Networking-Basics.assets/MSgpqDf.png)
 
 Screenshot of configuration for the cloud is below.
-![](https://i.imgur.com/Cm22b7O.png)
+![](INR-Lab-1-Networking-Basics.assets/Cm22b7O.png)
 
 Screenshot of configuration for the switch. Unused slots were deleted.
-![](https://i.imgur.com/FVxrGvf.png)
+![](INR-Lab-1-Networking-Basics.assets/FVxrGvf.png)
 
 Screenshot showing the joining of different appliances is below.
-![](https://i.imgur.com/mBQDXGF.png)
+![](INR-Lab-1-Networking-Basics.assets/mBQDXGF.png)
 
 
 #### 2. Install openssh-server on both VMs and nginx web server on the Web VM
@@ -292,7 +292,7 @@ The first step was to setup the Web Kali guest. The Admin Kali guest would be se
 
 On startup the Kali guest did not get an IP address assigned.
 The first step to getting internet connectivity was to allow the DHCP for the eth0 interface in order to get the IP address. Screenshot of /etc/network/interfaces is below, the lines concerning DHCP on eth0 are not commented.
-![](https://i.imgur.com/ALiwagj.png)
+![](INR-Lab-1-Networking-Basics.assets/ALiwagj.png)
 
 After the config was modified the interface was successfully brought up with ifup:
 ```
@@ -384,10 +384,10 @@ Then easily import the new image into GNS3. Source: https://docs.gns3.com/14EmmK
 First choose "New appliance template". 
 
 Select new Docker container as shown in the screenshot below.
-![](https://i.imgur.com/ohG35D9.png)
+![](INR-Lab-1-Networking-Basics.assets/ohG35D9.png)
 
 Select one of the newly created docker containers present on your system as show in the screenshot below.
-![](https://i.imgur.com/T7lf5tt.png)
+![](INR-Lab-1-Networking-Basics.assets/T7lf5tt.png)
 
 This actually has to be done only once and its best done when creating the appliance for the first time. If done at the time of appliance creation, then subsequent updates to the container will require only to run the "docker commit" with the container ID and the same image name. The image will be overwritten with new container state. To make it even easier you can use "docker rename" to give meaningful names to containers.
 
@@ -438,7 +438,7 @@ omitted, such as UUID and MAC address, as they will be auto generated.
 (In case `<forwarding>` uses `routing` mode then the virtual network will be directly bridged to the physical LAN, source https://wiki.debian.org/BridgeNetworkConnections and https://jamielinux.com/docs/libvirt-networking-handbook/bridged-network.html). 
 
 Edit lab1net.xml to have the content as on the screenshot below.
-![](https://i.imgur.com/ZyRagCQ.png)
+![](INR-Lab-1-Networking-Basics.assets/ZyRagCQ.png)
 
 A network must then be created from the definition.
 ```
@@ -467,16 +467,16 @@ virst net-destroy lab1net && virsh net-start lab1net
 
 Check the libvirt lab1net network configuration.
 It must resempble the config as shown below, after the auto generated fields have been added.
-![](https://i.imgur.com/Kg9lMrJ.png)
+![](INR-Lab-1-Networking-Basics.assets/Kg9lMrJ.png)
 
 The next step is to reconfigure the cloud appliance in GNS3 to use the new
 network. Press the "Refresh" button in GUI to have the virbrlab1 show up
 as an option. Configuration screenshot is below. 
-![](https://i.imgur.com/sMh5TLV.png)
+![](INR-Lab-1-Networking-Basics.assets/sMh5TLV.png)
 
 
 Then give each VM its personal static IP address by specifying it in /etc/network/interfaces. Screenshot is below.
-![](https://i.imgur.com/NGSBraf.png)
+![](INR-Lab-1-Networking-Basics.assets/NGSBraf.png)
 
 
 The configuration can be activated with `ifdown eth0 && ifup eth0`.
@@ -486,31 +486,31 @@ The admin VM has ip address 192.168.122.242.
 
 Check that the IP address is assigned, the ping to the internet works and
 the ping to the neighbour machine also works.
-![](https://i.imgur.com/Z87LWpP.png)
+![](INR-Lab-1-Networking-Basics.assets/Z87LWpP.png)
 
 (Now is a good time to commit changes to the docker images.)
 
 The resulting topology is below.
-![](https://i.imgur.com/R14F2NO.png)
+![](INR-Lab-1-Networking-Basics.assets/R14F2NO.png)
 
 
 
 #### 5. Check that you have connectivity between them
 
 Ping from Admin to Web, screenshot is below.
-![](https://i.imgur.com/RlGeVQv.png)
+![](INR-Lab-1-Networking-Basics.assets/RlGeVQv.png)
 
 Traceroute from Admin to Web, screenshot is below.
-![](https://i.imgur.com/8IpR1aS.png)
+![](INR-Lab-1-Networking-Basics.assets/8IpR1aS.png)
 
 Mtr from Admin to Web, screenshot is below.
-![](https://i.imgur.com/Efx8WJQ.png)
+![](INR-Lab-1-Networking-Basics.assets/Efx8WJQ.png)
 
 
 #### 6. Make sure your web server is accessible from the Admin VM.
 
 Retrieving nginx webpage located in the Web machine from the Admin machine is show below.
-![](https://i.imgur.com/WLH8wtC.png)
+![](INR-Lab-1-Networking-Basics.assets/WLH8wtC.png)
 
 
 ## Task 3
@@ -518,19 +518,19 @@ Retrieving nginx webpage located in the Web machine from the Admin machine is sh
 #### 1. Choose your OS and configure a template for it in GNS3.
 My OS of choice is the Kali Linux CLI docker image. After creating the 
 gateway machine I gave it two network adapters. Screenshot is below.
-![](https://i.imgur.com/wwPNJNy.png)
+![](INR-Lab-1-Networking-Basics.assets/wwPNJNy.png)
 
 
 #### 2. Modify your network to look like this topology and configure the network for Internal with a subnet of the same size as the previous one
 
 The topology is shown on the screenshot below.
-![](https://i.imgur.com/uiwzzQF.png)
+![](INR-Lab-1-Networking-Basics.assets/uiwzzQF.png)
 
 The next step was configuring the subnet on the Internal network.
 I decided to use the 10.0.250.240/28 for the Internal network. The External network is already configured to use 192.168.250.240/28.
 
 The configuration of the gateway machine is shown below.
-![](https://i.imgur.com/GghzaUJ.png)
+![](INR-Lab-1-Networking-Basics.assets/GghzaUJ.png)
 
 
 To clear old IP configuration I used the following command:
@@ -548,7 +548,7 @@ PC1 : 10.0.250.242 255.255.255.240 gateway 10.0.250.241
 ```
 
 The resulting network configurations for all 4 machines are shown below.
-![](https://i.imgur.com/ELVyZGO.png)
+![](INR-Lab-1-Networking-Basics.assets/ELVyZGO.png)
 
 
 
@@ -560,10 +560,10 @@ understood this sub-task as instructing me to connect the gateway to the
 internet via the cloud bridge.
 
 To connect the gateway to the cloud I added a third network adapter to the machine as shown in the screenshot below.
-![](https://i.imgur.com/BXqlNRE.png)
+![](INR-Lab-1-Networking-Basics.assets/BXqlNRE.png)
 
 Screenshot of the resulting topology is below.
-![](https://i.imgur.com/iintjyj.png)
+![](INR-Lab-1-Networking-Basics.assets/iintjyj.png)
 
 
 #### 4. Configure the IP address and enable IPv4 forwarding on the gateway.
@@ -574,7 +574,7 @@ connected to the bridged interface) will use DHCP for ip configuration.
 Knowing that the cloud network uses the 192.168.122.0/24 setup I re-configured the gateway machine. Note that both eth0 and eth1 have the same setup for the gateway.
 
 This is shown in the screenshot below.
-![](https://i.imgur.com/4zUPvOP.png)
+![](INR-Lab-1-Networking-Basics.assets/4zUPvOP.png)
 
 Verify that IPv4 forwarding is enabled on the gateway machine.
 ```
@@ -627,10 +627,10 @@ The gateway address has already been changed as part of the previous step,
 so there is nothing to change here.
 
 Checking their network connectivity from Admin by pinging Web and google.com:
-![](https://i.imgur.com/bepE0J8.png)
+![](INR-Lab-1-Networking-Basics.assets/bepE0J8.png)
 
 Checking connectivity from the Worker machine is below.
-![](https://i.imgur.com/mP7LCIM.png)
+![](INR-Lab-1-Networking-Basics.assets/mP7LCIM.png)
 
 
 #### 7. Configure port forwarding for HTTP and ssh to Web and Admin respectively.
@@ -669,14 +669,14 @@ MASQUERADE  all  --  192.168.250.240/28   anywhere
 #### 8. Check that you can ssh to the Admin and access your web page from the outside.
 
 Successfull retrieval of webpage from the Web host is shown below.
-![](https://i.imgur.com/cMno51o.png)
+![](INR-Lab-1-Networking-Basics.assets/cMno51o.png)
 
 For the ssh to work, first we must either PermitRootLogin on the remote server and then login with as a root user with root password or we can create a non-root user.
 Creating a dummy user is shown below.
-![](https://i.imgur.com/D2O5d8W.png)
+![](INR-Lab-1-Networking-Basics.assets/D2O5d8W.png)
 
 Then we can login to ssh from the host and retrieve the webpage from inside the network.
-![](https://i.imgur.com/VMN4ujk.png)
+![](INR-Lab-1-Networking-Basics.assets/VMN4ujk.png)
 
 
 #### 9. Replace your current gateway with the OS you chose.
@@ -686,7 +686,7 @@ I decided to replace the gateway with an OpenWRT router.
 To install it I followed the official instructions, source https://docs.gns3.com/appliances/openwrt.html. OpenWRT is essentially a trimmed down Linux box, so configuration steps are identical to the gateway. OpenWRT provides a web interface for configuration as well as ssh access.
 
 Screenshot of the web interface.
-![](https://i.imgur.com/xZjpDKX.png)
+![](INR-Lab-1-Networking-Basics.assets/xZjpDKX.png)
 
 I decided to use ssh to access the router. The password is empty on first login.
 ```
