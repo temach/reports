@@ -26,17 +26,17 @@ Source of information for everything related to nmap: https://nmap.org/book/toc.
 
 Screenshot of listening ports on Admin (only ssh) is below:
 
-![](../../../Pictures/Selection_126.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/Selection_126.png)
 
 Screenshot of listening ports on Web (ssh + nginx) is below:
 
-![](../../../Pictures/Selection_127.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/Selection_127.png)
 
 ### 2. Scan your gateway from the outside. What are the known open ports? Hint: use nmap
 
 First install nmap: `sudo apt-get install nmap`.
 
-![](../../../Pictures/artem@artem-209-HP-EliteDesk-800-G1-SFF: ~-Desktop-InnopolisUniversity-FIA_128.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20-Desktop-InnopolisUniversity-FIA_128.png)
 
 The open ports and their services are:
 
@@ -54,12 +54,12 @@ The FTP, telnet, cisco-sccp and unknown service are the default services started
 
 The current services can be found in IP->Sevices menu.
 
-![](../../../Pictures/admin@192.168.122.189 (MikroTik\) - WinBox v6.44.2 on CHR (x86_64\)_131.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_131.png)
 
 
 After disabling unnecessary services, I scanned the gateway again. This time out of curiosity I decided to use Zenmap, which is a graphical interface to the nmap tool.
 
-![](../../../Pictures/Zenmap_132.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/Zenmap_132.png)
 
 
 ### 4. Some scanners start by scanning the known ports and pinging a host to see if it is alive.
@@ -68,7 +68,7 @@ After disabling unnecessary services, I scanned the gateway again. This time out
 
 The SSH port 22 is open as shown on the Screenshot below:
 
-![](../../../Pictures/QEMU (Admin\) - TigerVNC_135.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/QEMU%20(Admin)%20-%20TigerVNC_135.png)
 
 #### Block ICMP traffic on Worker and change the port for SSH to one that is above 10000.
 
@@ -81,17 +81,17 @@ $ echo "1" >  /proc/sys/net/ipv4/icmp_echo_ignore_all
 And changed the SSH port by editing Port variable in /etc/ssh/sshd_config and restarting ssh service on Worker.
 
 
-![](../../../Pictures/QEMU (Worker\) - TigerVNC_137.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/QEMU%20(Worker)%20-%20TigerVNC_137.png)
 
 #### Scan it without extra arguments.
 
 
-![](../../../Pictures/QEMU (Admin\) - TigerVNC_138.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/QEMU%20(Admin)%20-%20TigerVNC_138.png)
 
 
 #### Now make necessary changes to the command to force the scan on all possible ports.
 
-![](../../../Pictures/QEMU (Admin\) - TigerVNC_139.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/QEMU%20(Admin)%20-%20TigerVNC_139.png)
 
 
 #### Gather some information about your open ports on Web ( ssh and http ).
@@ -190,12 +190,12 @@ Nmap done: 1 IP address (1 host up) scanned in 8.16 seconds
 Screenshot of the topology is shown below:
 
 
-![](../../../Pictures/lab-2-ipv4-and-ipv6 - GNS3_140.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/lab-2-ipv4-and-ipv6%20-%20GNS3_140.png)
 
 I ran wireshark on the connection between ether3 and virbr0 and requested the http://192.168.122.189/ from the browser on the host. Screenshot showing HTTP traffic capture is shown below:
 
 
-![](../../../Pictures/-Standard input [MikroTikCHR6.44.2-2 ether3 to Cloud-1 virbr0]_141.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/-Standard%20input%20%5BMikroTikCHR6.44.2-2%20ether3%20to%20Cloud-1%20virbr0%5D_141.png)
 
 
 #### Can you see what is being sent?
@@ -215,7 +215,7 @@ The headers describe how the data that is put on the wire is seen by the differe
 
 The capture is shown below:
 
-![](../../../Pictures/-Standard input [MikroTikCHR6.44.2-2 ether3 to Cloud-1 virbr0]_142.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/-Standard%20input%20%5BMikroTikCHR6.44.2-2%20ether3%20to%20Cloud-1%20virbr0%5D_142.png)
 
 #### Can you see what is being sent?
 
@@ -244,27 +244,27 @@ To install Burp Suite I downloaded an installer script from https://portswigger.
 
 Then after executing the installer, the files were placed in a subfolder in my home directory as shown below:
 
-![](../../../Pictures/artem@artem-209-HP-EliteDesk-800-G1-SFF: ~-BurpSuiteCommunity_143.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20-BurpSuiteCommunity_143.png)
 
 
 Setup Burp as a proxy to intercept HTML files as shown below:
 
-![](../../../Pictures/Burp Suite Community Edition v2.1.02 - Temporary Project_146.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/Burp%20Suite%20Community%20Edition%20v2.1.02%20-%20Temporary%20Project_146.png)
 
 
 Next we need to give Burp some data to work with. Execute the wget command:
 
-![](../../../Pictures/artem@artem-209-HP-EliteDesk-800-G1-SFF: ~-BurpSuiteCommunity_148.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20-BurpSuiteCommunity_148.png)
 
 (source: https://stackoverflow.com/questions/11211705/how-to-set-proxy-for-wget)
 
 At this moment Burp notices the request and we just let it continue by pressing Forward:
 
-![](../../../Pictures/Burp Suite Community Edition v2.1.02 - Temporary Project_149.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/Burp%20Suite%20Community%20Edition%20v2.1.02%20-%20Temporary%20Project_149.png)
 
 Successful completion:
 
-![](../../../Pictures/artem@artem-209-HP-EliteDesk-800-G1-SFF: ~-BurpSuiteCommunity_150.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20-BurpSuiteCommunity_150.png)
 
 
 #### Show that you can modify the contents by changing something in the request.
@@ -272,7 +272,7 @@ Successful completion:
 
 Lets request yandex.ru/index.html again, but change the request to be yandex.ru/favicon.ico. The wget output is below:
 
-![](../../../Pictures/artem@artem-209-HP-EliteDesk-800-G1-SFF: ~-BurpSuiteCommunity_154.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20-BurpSuiteCommunity_154.png)
 
 Note that we specifically requested /index.html, but got a 16x16 icon image.
 
@@ -305,12 +305,12 @@ The first step is enabling IPv6 in Mikrotik router. This requires enabling a pac
 
 Then we should configure the gateway addresses on each of the Mikrotik interfaces.
 
-![](../../../Pictures/admin@192.168.122.189 (MikroTik\) - WinBox v6.44.2 on CHR (x86_64\)_163.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_163.png)
 
 We are not going to configure the IPv6 on the virbr0 interface. 
 
 Then each machine had to be configured. Below is configuration of the worker machine `/etc/network/interfaces`, the other machines were configured in a similar manner:
-![](../../../Pictures/QEMU (Worker\) - TigerVNC_168.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/QEMU%20(Worker)%20-%20TigerVNC_168.png)
 
 Below is a test of each machine which shows:
 
@@ -319,22 +319,22 @@ Below is a test of each machine which shows:
 
 Web below:
 
-![](../../../Pictures/QEMU (Web\) - TigerVNC_164.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/QEMU%20(Web)%20-%20TigerVNC_164.png)
 
 Admin below:
 
-![](../../../Pictures/QEMU (Admin\) - TigerVNC_165.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/QEMU%20(Admin)%20-%20TigerVNC_165.png)
 
 
 Worker below:
- 
-![](../../../Pictures/QEMU (Worker\) - TigerVNC_166.png)
+
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/QEMU%20(Worker)%20-%20TigerVNC_166.png)
 
 
 ### 5. Access the Web Page using IPv6 from Admin while capturing again. Can you see the difference?
 
 Wireshark was set to capturing traffic between Web e0 interface and the "External" ethernet switch. The output is below:
 
-![](../../../Pictures/artem_abramov_cia_dump_ipv6_http.pcapng [Web Ethernet0 to External Ethernet0]_167.png)
+![](/home/artem/Desktop/InnopolisUniversity/innopolis_university_reports/INR-Lab-2-ipv4-and-ipv6.assets/artem_abramov_cia_dump_ipv6_http.pcapng%20%5BWeb%20Ethernet0%20to%20External%20Ethernet0%5D_167.png)
 
 There is a new type of traffic ICMPv6 mixed with IPv4 traffic, which serves for Neighbour solicitation and advertisement, i.e. discovery service. The request to the server from admin was made with `curl` and was completed successfully. The request uses IPv6 addresses.
