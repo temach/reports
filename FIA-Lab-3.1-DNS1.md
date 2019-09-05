@@ -143,12 +143,13 @@ artem@ unbound-1.9.3$ tree /usr/local/etc/unbound/
 ## Task 2 - Configuring and Testing
 
 ### Why are caching-only name servers still useful?
-In Linux there is no DNS caching done at the kernel level. It is the job of user-space tools. The distributions that use systemd ship with systemd-resolved.service which caches the result of the DNS queries and is normally enabled by default. The existence of a system-wide DNS cache speeds up the resolution of commonly used domain names and saves network traffic.
+
+In Linux there is no DNS caching done at the kernel level. It is the job of user-space tools. The distributions that use systemd ship with systemd-resolved.service which acts as a local DNS server, can cache the result of the DNS lookups and is normally enabled by default. The existence of a system-wide DNS cache speeds up the resolution of commonly used domain names and saves network traffic.
 (source: https://unix.stackexchange.com/questions/28553/how-to-read-the-local-dns-cache-contents and https://fedoraproject.org/wiki/Changes/Default_Local_DNS_Resolver)
 
 Appart from systemd-resolved there are other lightweight caching DNS servers such as `dnsmasq` and `NSCD (Name Service Caching Daemon)` (source: https://www.addictivetips.com/ubuntu-linux-tips/flush-dns-cache-on-linux/) 
 
-To check out how useful the systemd-resolved.service we can check out its statistics with `resolvectl statistics`, however that command is only available on systemd version 239, whereas the systemd on my Ubuntu install is 237, so I have to use the older command as shown below: 
+To check out how useful the systemd-resolved.service actually is  we can check out its statistics. Recent articles use `resolvectl statistics` that  is only available with systemd version 239, whereas on my Ubuntu the systemd version is 237, so I have to use the older command as shown below: 
 ```
 $ systemd-resolve --statistics 
 DNSSEC supported by current servers: no
@@ -171,16 +172,13 @@ DNSSEC Verdicts
 
 (source: https://askubuntu.com/questions/1149364/why-is-resolvectl-no-longer-included-in-bionic-and-whats-the-alternative and https://www.ctrl.blog/entry/systemd-resolved.html)
 
-This are my usage statistics for the last 30 minutes, because previously I had disabled the systemd-resolved.service. Every cache hit is a success. To check the effectiveness of the caching server we can also compare the time to resolve a DNS query with `drill` command (from `ldnsutils` package) once with caching enabled and once without caching.
+This are my usage statistics for the last 30 minutes, because previously I had disabled the systemd-resolved.service. Every cache hit is a success. To check the effectiveness of the caching server we can also compare the time to resolve a DNS query (using `drill` utility from `ldnsutils` package) from the remove server vs the cache.
+
+Below is the result of sending two queries to a government website in New Zeland, note the `Query time` parameter that is 0 for the second query because the query result is cached:
+
+![artem@artem-209-HP-EliteDesk-800-G1-SFF: ~_170](FIA-Lab-3.1-DNS1.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20_170.png)
 
 
-
-
-Quoted from 
-```
-Existence of system-wide DNS cache (in Unbound server) will speed up the resolution of frequent domain names and in general will save network traffic.
-```
-source: https://fedoraproject.org/wiki/Changes/Default_Local_DNS_Resolver and 
 
 ### Root Servers
 
@@ -193,6 +191,21 @@ $ sudo wget -S -N https://www.internic.net/domain/named.cache -O /usr/local/etc/
 
 ### Resolving localhost
 
+Running unbound would conflict with systemd-resolved.service. There was no need to use the systemd-resolved.service, so it was disabled and the symbolic link to `/etc/resolv.conf` was removed as shown below:
+
+```bash
+$ systemctl disable systemd-resolved.service 
+Removed /etc/systemd/system/dbus-org.freedesktop.resolve1.service.
+Removed /etc/systemd/system/multi-user.target.wants/systemd-resolved.service.
+artem@ unbound-1.9.3$ 
+artem@ unbound-1.9.3$ file /etc/resolv.conf 
+/etc/resolv.conf: symbolic link to ../run/systemd/resolve/stub-resolv.conf
+artem@ unbound-1.9.3$ 
+artem@ unbound-1.9.3$ sudo rm /etc/resolv.conf
+```
+
+(source: https://askubuntu.com/questions/907246/how-to-disable-systemd-resolved-in-ubuntu)
+
 For writing the unbound config most of the information I used was from:
 1. Manual page for unbound.conf (online: https://nlnetlabs.nl/documentation/unbound/unbound.conf/)
 2. Default configuration file installed in the system
@@ -202,21 +215,167 @@ For writing the unbound config most of the information I used was from:
 6. https://linuxconfig.org/unbound-cache-only-dns-server-setup-on-rhel-7-linux
 7. https://www.tecmint.com/install-configure-cache-only-dns-server-in-rhel-centos-7/
 
+After writing the configuration file I tried to check it:
+```
+$ unbound-checkconf 
+[1567718050] unbound-checkconf[2478:0] fatal error: user 'unbound' does not exist.
+```
+This is an installation problem (because `make install` does not create the `unbound` user) , for simplicity I decided to run the server as root instead of adding a new user.
+
+The resulting configuration for unbound is given below:
+```
+$ cat unbound.conf
+server:
+	verbosity: 1
+	num-threads: 1
+	interface: 0.0.0.0
+	interface: ::0
+	port: 53
+	access-control: 0.0.0.0/0 allow
+	access-control: ::0/0 allow
+	root-hints: "/usr/local/etc/unbound/root.hints"
+	username: ""
+python:
+remote-control:
+```
+
+Finally checking the config was successful:
+```
+$ unbound-checkconf 
+unbound-checkconf: no errors in /usr/local/etc/unbound/unbound.conf
+artem@ unbound$ echo $?
+0
+```
+
+#### Why do the programs return a result value?
+
+POSIX standard specifies that a POSIX compliant program should return 0 to indicate that it has done its job and terminated successfully and any number from 1 to 255 to indicate error.
+This allows writing shell scripts that can execute programs and can control the execution flow depending on the program return code.
 
 
+## Task 3 - Running and Improving the Name Server
+
+Running unbound failed the first time to open port 53 as shown below:. 
+```
+$ sudo unbound -d -vvv
+[1567718988] unbound[2832:0] notice: Start of unbound 1.9.3.
+[1567718988] unbound[2832:0] debug: creating udp4 socket 0.0.0.0 53
+[1567718988] unbound[2832:0] debug: creating tcp4 socket 0.0.0.0 53
+[1567718988] unbound[2832:0] error: can't bind socket: Address already in use for 0.0.0.0 port 53 (len 16)
+[1567718988] unbound[2832:0] fatal error: could not open ports
+```
+
+I investigated with netstat as shown below:
+```
+artem@ unbound$ netstat -lnt
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State      
+tcp        0      0 192.168.122.1:53        0.0.0.0:*               LISTEN     
+tcp        0      0 127.0.0.1:631           0.0.0.0:*               LISTEN     
+tcp6       0      0 ::1:631                 :::*                    LISTEN     
+```
+
+Then I realized that I accidentally enabled libvirt network and so I turned it off as shown below:
+```
+artem@ unbound$ virsh net-list
+ Name                 State      Autostart     Persistent
+----------------------------------------------------------
+ default              active     yes           yes
+
+artem@ unbound$ virsh net-destroy default
+Network default destroyed
+
+artem@ unbound$ virsh net-list
+ Name                 State      Autostart     Persistent
+----------------------------------------------------------
+
+artem@ unbound$ netstat -lnt
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State      
+tcp        0      0 127.0.0.1:631           0.0.0.0:*               LISTEN     
+tcp6       0      0 ::1:631                 :::*                    LISTEN  
+```
+
+Then starting unbound was successful as shown below:
+```
+$ sudo unbound -d -vvv
+[1567719043] unbound[3018:0] notice: Start of unbound 1.9.3.
+[1567719043] unbound[3018:0] debug: creating udp4 socket 0.0.0.0 53
+[1567719043] unbound[3018:0] debug: creating tcp4 socket 0.0.0.0 53
+[1567719043] unbound[3018:0] debug: creating udp6 socket :: 53
+[1567719043] unbound[3018:0] debug: creating tcp6 socket :: 53
+[1567719043] unbound[3018:0] debug: switching log to syslog
+```
+
+### Show the changes you made to your configuration to allow remote control.
+
+Enabling log file and unbound-control in unbound.conf, the resulting config is shown below:
+
+```
+$ cat unbound.conf
+server:
+	verbosity: 1
+	num-threads: 1
+	interface: 0.0.0.0
+	interface: ::0
+	port: 53
+	access-control: 0.0.0.0/0 allow
+	access-control: ::0/0 allow
+	root-hints: "/usr/local/etc/unbound/root.hints"
+	username: ""
+	logfile: "/var/log/unbound.log"
+python:
+remote-control:
+	control-enable: yes
+	control-interface: /var/tmp/unbound-control.pipe
+```
+
+Because I am using the named pipe mechanism for communication between unbound-control and the unbound server, there is no need to setup the TLS certificates and keys.
 
 
+### What other commands/functions does rndc/unbound-control provide?
 
+The unbound-control can be used to remotely administer the unbound server. The communication happens over SSL. There is a program to setup a selfsigned certificate and keys used in communication.  
 
+There are a number of useful commands that the server understands such as:
+1. start/stop the server
+2. view statistics
+3. view cache
+4. create/read/update/delete a zone
+5. change server mode: caching, caching+forwarding, master, slave
 
+unbound-control provides a way to access the functionallity above remotely.
 
+### What do you need to put in resolv.conf (and/or other files) to use your own name server?
 
+As I have already noted above in the beginning of the section `Resolving localhost`, I have disabled management of `/etc/resolv.conf` by systemd-resolved.service. Now in order to make use of the unbound name server I need `/etc/resolv.conf` file to have the contents as below:
+```
+$ cat /etc/resolv.conf 
+nameserver 127.0.0.1
+```
 
+Commands to start unbound server, check that its listening on port 53 and find its process id are shown below:
+```
+artem@ unbound$ sudo unbound-control start
+artem@ unbound$ netstat -lnt
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State      
+tcp        0      0 0.0.0.0:53              0.0.0.0:*               LISTEN     
+tcp        0      0 127.0.0.1:631           0.0.0.0:*               LISTEN     
+tcp6       0      0 :::53                   :::*                    LISTEN     
+tcp6       0      0 ::1:631                 :::*                    LISTEN     
+artem@ unbound$ ps aux | grep unbound
+root      4469  0.1  0.0  23992  5436 ?        Ss   01:56   0:00 unbound -c /usr/local/etc/unbound/unbound.conf
+artem     4473  0.0  0.0  21532  1116 pts/0    S+   01:56   0:00 grep --color=auto unbound
+```
 
+Lets test that it actually provides caching. Running two consecutive queries note the `Query time` field which is 121msec for the first query and 0 msec for the second query to the same domain:
 
+![artem@artem-209-HP-EliteDesk-800-G1-SFF: -usr-local-etc-unbound_171](FIA-Lab-3.1-DNS1.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20-usr-local-etc-unbound_171.png)
 
+To verify that  the speedup was due to the unbound server, lets change the default nameserver to 8.8.8.8 (Google Public DNS) and run the query again as shown below:
 
+![root@artem-209-HP-EliteDesk-800-G1-SFF: ~_172](FIA-Lab-3.1-DNS1.assets/root@artem-209-HP-EliteDesk-800-G1-SFF%20_172.png)
 
-
-
+The second query took as much time as the first, because the unbound server was side stepped.
 
