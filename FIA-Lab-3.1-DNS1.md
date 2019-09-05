@@ -3,7 +3,7 @@
 #### Artem Abramov SNE19
 
 May I suggest viewing this document in your browser at address: 
-https://github.com/temach/innopolis_university_reports/blob/master/
+https://github.com/temach/innopolis_university_reports/blob/master/FIA-Lab-3.1-DNS1.md
 Unfortunately rendering the document to PDF breaks some long lines and crops images.
 
 ## Task 1 - Downloading and Installing a Caching Nameserver
@@ -79,12 +79,12 @@ https://crypto.stackexchange.com/questions/5646/what-are-the-differences-between
 
 ### 1.2 - Documentation & Compiling
 
-I decided not to use the default ubuntu packages and went along with compiling from release tarball. 
+I decided not to use the default Ubuntu packages and went along with compiling from release tarball. 
 
 Unbound source: https://nlnetlabs.nl/projects/unbound/download/
 NSD source: https://www.nlnetlabs.nl/projects/nsd/download/
 
-Before compiling unbound in order to simplify the dependency chase I looked at the runtime  dependencies for the ubuntu unbound package as shown below:
+Before compiling unbound in order to simplify the dependency chase I looked at the runtime  dependencies for the Ubuntu unbound package as shown below:
 
 ```
 $ apt-cache depends unbound
@@ -108,7 +108,7 @@ unbound
 (source: https://askubuntu.com/questions/80655/how-can-i-check-dependency-list-for-a-deb-package)
 
 Then I installed the dependencies, before starting the actual compilation.
-When compiling NSD a problem occured because the ./configure could not find libevent even though there were clearly two versions installed. 
+When compiling NSD a problem occurred because the ./configure could not find libevent even though there were clearly two versions installed. 
 
 ```
 checking for libevent... configure: error: Cannot find the libevent library.
@@ -125,7 +125,7 @@ And compiling unbound was successful without any extra options as shown below:
 $ ./configure
 ```
 
-The resulting config  files are placed as requested:
+The resulting configuration files are placed as requested:
 ```
 artem@ unbound-1.9.3$ tree /usr/local/etc/nsd/
 /usr/local/etc/nsd/
@@ -143,7 +143,44 @@ artem@ unbound-1.9.3$ tree /usr/local/etc/unbound/
 ## Task 2 - Configuring and Testing
 
 ### Why are caching-only name servers still useful?
+In Linux there is no DNS caching done at the kernel level. It is the job of user-space tools. The distributions that use systemd ship with systemd-resolved.service which caches the result of the DNS queries and is normally enabled by default. The existence of a system-wide DNS cache speeds up the resolution of commonly used domain names and saves network traffic.
+(source: https://unix.stackexchange.com/questions/28553/how-to-read-the-local-dns-cache-contents and https://fedoraproject.org/wiki/Changes/Default_Local_DNS_Resolver)
 
+Appart from systemd-resolved there are other lightweight caching DNS servers such as `dnsmasq` and `NSCD (Name Service Caching Daemon)` (source: https://www.addictivetips.com/ubuntu-linux-tips/flush-dns-cache-on-linux/) 
+
+To check out how useful the systemd-resolved.service we can check out its statistics with `resolvectl statistics`, however that command is only available on systemd version 239, whereas the systemd on my Ubuntu install is 237, so I have to use the older command as shown below: 
+```
+$ systemd-resolve --statistics 
+DNSSEC supported by current servers: no
+
+Transactions
+Current Transactions: 0
+  Total Transactions: 232
+
+Cache
+  Current Cache Size: 60
+          Cache Hits: 122
+        Cache Misses: 112
+
+DNSSEC Verdicts
+              Secure: 0
+            Insecure: 0
+               Bogus: 0
+       Indeterminate: 0
+```
+
+(source: https://askubuntu.com/questions/1149364/why-is-resolvectl-no-longer-included-in-bionic-and-whats-the-alternative and https://www.ctrl.blog/entry/systemd-resolved.html)
+
+This are my usage statistics for the last 30 minutes, because previously I had disabled the systemd-resolved.service. Every cache hit is a success. To check the effectiveness of the caching server we can also compare the time to resolve a DNS query with `drill` command (from `ldnsutils` package) once with caching enabled and once without caching.
+
+
+
+
+Quoted from 
+```
+Existence of system-wide DNS cache (in Unbound server) will speed up the resolution of frequent domain names and in general will save network traffic.
+```
+source: https://fedoraproject.org/wiki/Changes/Default_Local_DNS_Resolver and 
 
 ### Root Servers
 
@@ -157,12 +194,13 @@ $ sudo wget -S -N https://www.internic.net/domain/named.cache -O /usr/local/etc/
 ### Resolving localhost
 
 For writing the unbound config most of the information I used was from:
-1. unbound.conf manual page (online version: https://nlnetlabs.nl/documentation/unbound/unbound.conf/)
-2. default configuration file installed into the system
-3. https://nlnetlabs.nl/pipermail/unbound-users/2010-September/006748.html
+1. Manual page for unbound.conf (online: https://nlnetlabs.nl/documentation/unbound/unbound.conf/)
+2. Default configuration file installed in the system
+3. Cache size configuration: https://nlnetlabs.nl/pipermail/unbound-users/2010-September/006748.html
 4. Bind9 manual (https://www.bind9.net/bind-9.13.3-manual.pdf)
-5. https://linuxconfig.org/unbound-cache-only-dns-server-setup-on-rhel-7-linux
-6. https://www.tecmint.com/install-configure-cache-only-dns-server-in-rhel-centos-7/
+5. https://wiki.archlinux.org/index.php/unbound
+6. https://linuxconfig.org/unbound-cache-only-dns-server-setup-on-rhel-7-linux
+7. https://www.tecmint.com/install-configure-cache-only-dns-server-in-rhel-centos-7/
 
 
 
