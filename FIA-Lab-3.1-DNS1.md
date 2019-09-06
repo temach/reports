@@ -646,3 +646,4 @@ os3.su.			1800	IN	NS	ns2.os3.su.
 
 The IP `62.210.110.7` is actually `os3.su.` its a default responce for unknown records in the `os3.su` zone (administered by `p.braun@innopolis.ru`).
 
+(source: https://dyn.com/blog/domain-name-system-dns-delegation-the-zone-authority-chain/)
