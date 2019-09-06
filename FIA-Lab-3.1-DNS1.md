@@ -117,7 +117,8 @@ You can restart ./configure --with-libevent=no to use a builtin alternative.
 
 Since there was a workaround, I compiled without libevent as shown below:
 ```
-artem@ nsd-4.2.2$ ./configure --with-libevent=no
+artem@ nsd-4.2.2$ ./configure --with-configdir=/usr/local/etc/nsd --with-libevent=no
+
 ```
 
 And compiling unbound was successful without any extra options as shown below:
@@ -378,4 +379,270 @@ To verify that  the speedup was due to the unbound server, lets change the defau
 ![root@artem-209-HP-EliteDesk-800-G1-SFF: ~_172](FIA-Lab-3.1-DNS1.assets/root@artem-209-HP-EliteDesk-800-G1-SFF%20_172.png)
 
 The second query took as much time as the first, because the unbound server was side stepped.
+
+## Task 4 - (Installing and) Configuring an Authoritative Nameserver
+
+NSD has pretty good documentation, that is located in `doc/README` in the repository (github repo: https://github.com/NLnetLabs/nsd). The compilation and installation was done above in section `1.2 - Documentation & Compiling`.
+
+Create a new `nsd` user as below to complete the installation (we disable interactive login):
+```
+sudo useradd -r -s /bin/false nsd
+```
+(source: https://askubuntu.com/questions/29359/how-to-add-a-user-without-home)
+
+The resulting config for NSD is shown below:
+```
+$ cat nsd.conf
+server:
+	server-count: 1
+	ip-address: 0.0.0.0
+	ip-address: ::0
+	port: 53
+	verbosity: 1
+	username: nsd
+	logfile: "/var/log/nsd.log"
+remote-control:
+	control-enable: yes
+	control-interface: /var/tmp/nsd-control.pipe
+```
+
+For simplicity the communication with nsd-control is handled through a named pipe.
+It was also necessary to change ownership of the NSD database file as shown below (error was shown in the NSD log file):
+```
+$ sudo chown nsd:nsd -R /var/db/nsd/
+```
+
+Server finally started with the following line in the log file `/var/log/nsd.log`:
+```
+[2019-09-06 01:41:36.080] nsd[25509]: notice: nsd starting (NSD 4.2.2)
+[2019-09-06 01:41:36.083] nsd[25511]: info: zone std9.os3.su read with success
+[2019-09-06 01:41:36.116] nsd[25511]: notice: nsd started (NSD 4.2.2), pid 25510
+```
+
+Running the server with a sample zone file was uneventful:
+```
+$ nsd-checkconf -z std9.zone nsd.conf
+$ sudo nsd-control start
+```
+
+### What information do you need to give to the TAs so they can implement the delegation?
+
+My machine will be the authoritative server for the std9.os3.su zone. I need to provide the TA (who supposedly control the os3.su zone) with information at which IP address my authoritate server can be found - `188.130.155.42`. They will add non-authoritative records (glue records) to their zone which will point to the IP address of my nameserver.
+(source: https://serverfault.com/questions/309622/what-is-a-glue-record)
+
+### Now create a forward mapping zone file for your domain.
+
+The zone file must contain:
+1. 2 MX records. Make sure that mail for your domain is delivered to your
+own public IP. We will use the second MX record later on.
+2. 4 A or AAAA records. Use your imagination.
+3. 2 CNAME records.
+
+The resulting zone config `/usr/local/etc/nsd/std9.os3.su.zone`is shown below:
+```
+; source: http://www.thecave.info/create-dns-record-for-subdomain
+; source: http://www.thecave.info/add-new-zone-to-bind-dns-server
+; source: https://en.wikipedia.org/wiki/Zone_file
+; IPv6 source: https://www.oreilly.com/library/view/dns-and-bind/9781449308025/ch01.html
+; Zone file for std9.os3.su
+;
+$TTL 3600
+; Zone configuration (SOA) record
+std9.os3.su.       IN      SOA     ns0.std9.os3.su. admin.std9.os3.su. (
+                        2019090600  ; Serial
+                        10800       ; Refresh
+                        3600        ; Retry
+                        604800      ; Expire
+                        38400 )     ; Negative Cache TTL
+; Nameserver records
+std9.os3.su.		IN      NS      ns0.std9.os3.su.
+
+; dual stack server, but no IPv6 for the machine in lab
+ns0.std9.os3.su.       	IN      A       188.130.155.42
+lab.std9.os3.su.       	IN      A       188.130.155.42
+mail.std9.os3.su.       IN      A       188.130.155.42
+
+ansible.std9.os3.su.   	IN      A       185.22.153.49
+                        IN      AAAA    2a00:b700:0000:0000:0000:0000:0006:0220
+tst.std9.os3.su.       	IN      A       68.183.92.166
+                        IN      AAAA    2400:6180:0100:00d0:0000:0000:08c4:9001
+
+; Other records
+www.std9.os3.su.   	IN      CNAME   notes.std9.os3.su.
+notes.std9.os3.su. 	IN      CNAME   temach.github.io.
+
+; Mail
+std9.os3.su.                       IN      MX      10                                  mail.std9.os3.su.
+std9.os3.su.                       IN      MX      20                                  ansible.std9.os3.su.
+```
+
+The resulting nsd.conf is shown below:
+```
+server:
+	server-count: 1
+	ip-address: 0.0.0.0
+	ip-address: ::0
+	port: 53
+	verbosity: 2
+	username: nsd
+	logfile: "/var/log/nsd.log"
+remote-control:
+	control-enable: yes
+	control-interface: /var/tmp/nsd-control.pipe
+zone:
+ 	name: "std9.os3.su"
+ 	zonefile: "std9.os3.su.zone"
+```
+
+Showing the forward mapping zone file in the log file using the command below (the name of the zone file showed up in logs only after verbosity was set to 4):
+
+![artem@artem-209-HP-EliteDesk-800-G1-SFF: -usr-local-etc-nsd_173](FIA-Lab-3.1-DNS1.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20-usr-local-etc-nsd_173.png)
+
+
+The next step was setting the nameserver to localhost in /etc/resolv.conf to interrogate the NSD server.
+Request SOA:
+```
+$ drill std9.os3.su
+;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 13282
+;; flags: qr aa rd ; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 0 
+;; QUESTION SECTION:
+;; std9.os3.su.	IN	A
+
+;; ANSWER SECTION:
+
+;; AUTHORITY SECTION:
+std9.os3.su.	3600	IN	SOA	ns0.std9.os3.su. admin.std9.os3.su. 2019090600 10800 3600 604800 38400
+
+;; ADDITIONAL SECTION:
+
+;; Query time: 0 msec
+;; SERVER: 127.0.0.1
+;; WHEN: Fri Sep  6 04:49:40 2019
+;; MSG SIZE  rcvd: 75
+```
+
+Request double CNAME:
+```
+drill www.std9.os3.su
+;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 21150
+;; flags: qr aa rd ; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 0 
+;; QUESTION SECTION:
+;; www.std9.os3.su.	IN	A
+
+;; ANSWER SECTION:
+www.std9.os3.su.	3600	IN	CNAME	notes.std9.os3.su.
+notes.std9.os3.su.	3600	IN	CNAME	temach.github.io.
+
+;; AUTHORITY SECTION:
+
+;; ADDITIONAL SECTION:
+
+;; Query time: 0 msec
+;; SERVER: 127.0.0.1
+;; WHEN: Fri Sep  6 04:50:01 2019
+;; MSG SIZE  rcvd: 83
+```
+
+Request with additional info:
+```
+$ drill ansible.std9.os3.su.
+;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 28530
+;; flags: qr aa rd ; QUERY: 1, ANSWER: 1, AUTHORITY: 1, ADDITIONAL: 1 
+;; QUESTION SECTION:
+;; ansible.std9.os3.su.	IN	A
+
+;; ANSWER SECTION:
+ansible.std9.os3.su.	3600	IN	A	185.22.153.49
+
+;; AUTHORITY SECTION:
+std9.os3.su.	3600	IN	NS	ns0.std9.os3.su.
+
+;; ADDITIONAL SECTION:
+ns0.std9.os3.su.	3600	IN	A	188.130.155.42
+
+;; Query time: 0 msec
+;; SERVER: 127.0.0.1
+;; WHEN: Fri Sep  6 04:51:08 2019
+;; MSG SIZE  rcvd: 87
+```
+
+
+### What important requirement is not yet met for your subdomain?
+Currently the server claims to be the authoritative server for std9.os3.su. However there needs to be some way of actually proving this claim. The proof would be that the higher level DNS server delegates the std9.so3.su. zone to my server with IP `188.130.155.42`. 
+
+We can see that the domain does not resolve currently:
+```
+$ dig ns std9.os3.su +trace +nodnssec
+
+; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> ns std9.os3.su +trace +nodnssec
+;; global options: +cmd
+.			258385	IN	NS	i.root-servers.net.
+.			258385	IN	NS	h.root-servers.net.
+.			258385	IN	NS	j.root-servers.net.
+.			258385	IN	NS	k.root-servers.net.
+.			258385	IN	NS	f.root-servers.net.
+.			258385	IN	NS	c.root-servers.net.
+.			258385	IN	NS	g.root-servers.net.
+.			258385	IN	NS	e.root-servers.net.
+.			258385	IN	NS	l.root-servers.net.
+.			258385	IN	NS	b.root-servers.net.
+.			258385	IN	NS	m.root-servers.net.
+.			258385	IN	NS	a.root-servers.net.
+.			258385	IN	NS	d.root-servers.net.
+;; Received 239 bytes from 8.8.8.8#53(8.8.8.8) in 30 ms
+
+su.			172800	IN	NS	a.dns.ripn.net.
+su.			172800	IN	NS	b.dns.ripn.net.
+su.			172800	IN	NS	d.dns.ripn.net.
+su.			172800	IN	NS	e.dns.ripn.net.
+su.			172800	IN	NS	f.dns.ripn.net.
+;; Received 352 bytes from 192.58.128.30#53(j.root-servers.net) in 17 ms
+
+os3.su.			345600	IN	NS	ns.os3.su.
+os3.su.			345600	IN	NS	ns2.os3.su.
+;; Received 107 bytes from 193.232.128.6#53(a.dns.ripn.net) in 68 ms
+
+os3.su.			1800	IN	SOA	os3.su. p\.braun.innopolis.ru. 1566480002 3600 900 1209600 1800
+;; Received 96 bytes from 62.210.16.8#53(ns2.os3.su) in 66 ms
+```
+
+And we just do the query for the A record:
+```
+$ dig std9.os3.su +trace +nodnssec
+
+; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> std9.os3.su +trace +nodnssec
+;; global options: +cmd
+.			256418	IN	NS	m.root-servers.net.
+.			256418	IN	NS	j.root-servers.net.
+.			256418	IN	NS	b.root-servers.net.
+.			256418	IN	NS	f.root-servers.net.
+.			256418	IN	NS	i.root-servers.net.
+.			256418	IN	NS	h.root-servers.net.
+.			256418	IN	NS	g.root-servers.net.
+.			256418	IN	NS	c.root-servers.net.
+.			256418	IN	NS	e.root-servers.net.
+.			256418	IN	NS	a.root-servers.net.
+.			256418	IN	NS	d.root-servers.net.
+.			256418	IN	NS	l.root-servers.net.
+.			256418	IN	NS	k.root-servers.net.
+;; Received 239 bytes from 8.8.8.8#53(8.8.8.8) in 30 ms
+
+su.			172800	IN	NS	a.dns.ripn.net.
+su.			172800	IN	NS	b.dns.ripn.net.
+su.			172800	IN	NS	d.dns.ripn.net.
+su.			172800	IN	NS	e.dns.ripn.net.
+su.			172800	IN	NS	f.dns.ripn.net.
+;; Received 352 bytes from 198.97.190.53#53(h.root-servers.net) in 151 ms
+
+os3.su.			345600	IN	NS	ns.os3.su.
+os3.su.			345600	IN	NS	ns2.os3.su.
+;; Received 107 bytes from 194.85.252.62#53(b.dns.ripn.net) in 27 ms
+
+std9.os3.su.		1800	IN	A	62.210.110.7
+os3.su.			1800	IN	NS	ns.os3.su.
+os3.su.			1800	IN	NS	ns2.os3.su.
+;; Received 123 bytes from 62.210.16.8#53(ns2.os3.su) in 71 ms
+```
+
+The IP `62.210.110.7` is actually `os3.su.` its a default responce for unknown records in the `os3.su` zone (administered by `p.braun@innopolis.ru`).
 
