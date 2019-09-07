@@ -52,10 +52,9 @@ The signature is a detached signature, so its provided as a separate piece of in
 
 (source: https://www.isc.org/pgpkey/ and https://www.gnupg.org/gph/en/manual/x135.html).
 
-
 #### Which kind of signature is the best one to use? Why?
 
-Signing is supposed to provide integrity and authentication of the tarball. The hashsum is normally expected to provide only the integrity of the data.
+Signing is supposed to provide integrity and authentication of the tarball. The hashsum is normally expected to provide only the integrity of the data. 
 
 In this particular case however the chain of trust does not get build. Therefore I can indeed verify that the tarball was signed with a key pair that is published on the official ISC website. I know that the website is official because the access is via HTTPS. However I still do not know if the key pair published on the official ISC website is the key pair that the ISC main administrator used to sign the tarball. Maybe the webserver was compromised, the tarball was substituted and the key pair was substituted as well, so the tarball was signed with a malicious private key and the malicious public key was published on the official website.
 
@@ -188,17 +187,43 @@ $ sudo wget -S -N https://www.internic.net/domain/named.cache -O /usr/local/etc/
 
 ### Resolving localhost
 
-Running unbound would conflict with systemd-resolved.service. There was no need to use the systemd-resolved.service, so it was disabled and the symbolic link to `/etc/resolv.conf` was removed as shown below:
+Running unbound would conflict with systemd-resolved.service. There was no need to use the systemd-resolved.service, so the first step was disabling it as shown below:
 
 ```bash
 $ systemctl disable systemd-resolved.service 
 Removed /etc/systemd/system/dbus-org.freedesktop.resolve1.service.
 Removed /etc/systemd/system/multi-user.target.wants/systemd-resolved.service.
-artem@ unbound-1.9.3$ 
-artem@ unbound-1.9.3$ file /etc/resolv.conf 
+```
+
+The `/etc/resolved.conf` on my system was managed by systemd-resolved (it was actually a symbolic link to `/run/systemd/resolve/stub-resolv.conf`) , as shown below:
+```bash
+$ file /etc/resolv.conf 
 /etc/resolv.conf: symbolic link to ../run/systemd/resolve/stub-resolv.conf
-artem@ unbound-1.9.3$ 
-artem@ unbound-1.9.3$ sudo rm /etc/resolv.conf
+$ cat /etc/resolv.conf
+# This file is managed by man:systemd-resolved(8). Do not edit.
+#
+# This is a dynamic resolv.conf file for connecting local clients to the
+# internal DNS stub resolver of systemd-resolved. This file lists all
+# configured search domains.
+#
+# Run "systemd-resolve --status" to see details about the uplink DNS servers
+# currently in use.
+#
+# Third party programs must not access this file directly, but only through the
+# symlink at /etc/resolv.conf. To manage man:resolv.conf(5) in a different way,
+# replace this symlink by a static file or a different symlink.
+#
+# See man:systemd-resolved.service(8) for details about the supported modes of
+# operation for /etc/resolv.conf.
+
+nameserver 127.0.0.53
+options edns0
+```
+
+So after disabling the service, I had to remove the symbolic link to `/etc/resolv.conf` with `sudo rm /etc/resolv.conf`. And created the actual `/etc/resolv.conf` file:
+```bash
+$ cat /etc/resolv.conf 
+nameserver 8.8.8.8
 ```
 
 (source: https://askubuntu.com/questions/907246/how-to-disable-systemd-resolved-in-ubuntu)
@@ -374,13 +399,13 @@ To verify that  the speedup was due to the unbound server, lets change the defau
 
 ![root@artem-209-HP-EliteDesk-800-G1-SFF: ~_172](FIA-Lab-3.1-DNS1.assets/root@artem-209-HP-EliteDesk-800-G1-SFF%20_172.png)
 
-The second query took as much time as the first, because the unbound server was side stepped.
+The second query took as much time as the first (31 msec), because the unbound server was side stepped.
 
 ## Task 4 - (Installing and) Configuring an Authoritative Nameserver
 
-NSD has pretty good documentation, that is located in `doc/README` in the repository (github repo: https://github.com/NLnetLabs/nsd). The compilation and installation was done above in section `1.2 - Documentation & Compiling`.
+NSD has pretty good documentation, that is located in `doc/README` in the repository (github repo: https://github.com/NLnetLabs/nsd). The compilation and installation steps for NSD were already done above in section `1.2 - Documentation & Compiling`. However one step still remained to complete the installation.
 
-Create a new `nsd` user as below to complete the installation (we disable interactive login):
+Create a new `nsd` user as below (we disable interactive login):
 ```
 sudo useradd -r -s /bin/false nsd
 ```
@@ -402,8 +427,7 @@ remote-control:
 	control-interface: /var/tmp/nsd-control.pipe
 ```
 
-For simplicity the communication with nsd-control is handled through a named pipe.
-It was also necessary to change ownership of the NSD database file as shown below (error was shown in the NSD log file):
+For simplicity the communication between the `nsd` server and `nsd-control` is handled through a named pipe. It was also necessary to change ownership of the NSD database file as shown below (error was shown in the NSD log file):
 ```
 $ sudo chown nsd:nsd -R /var/db/nsd/
 ```
@@ -423,8 +447,7 @@ $ sudo nsd-control start
 
 ### What information do you need to give to the TAs so they can implement the delegation?
 
-My machine will be the authoritative server for the std9.os3.su zone. I need to provide the TA (who supposedly control the os3.su zone) with information at which IP address my authoritate server can be found - `188.130.155.42`. They will add non-authoritative records (glue records) to their zone which will point to the IP address of my nameserver.
-(source: https://serverfault.com/questions/309622/what-is-a-glue-record)
+My machine will be the authoritative server for the std9.os3.su zone. I need to provide the TA (who supposedly controls the os3.su zone) with information at which IP address my authoritative name server can be found - `188.130.155.42`. 
 
 ### Now create a forward mapping zone file for your domain.
 
@@ -659,5 +682,69 @@ os3.su.			1800	IN	NS	ns2.os3.su.
 
 The IP `62.210.110.7` is actually `os3.su.` so its a default response for unknown records in the `os3.su` zone (administered by `p.braun@innopolis.ru`).
 
-(source: https://dyn.com/blog/domain-name-system-dns-delegation-the-zone-authority-chain/)
+sources: 
+
+1. https://dyn.com/blog/domain-name-system-dns-delegation-the-zone-authority-chain/
+2. https://serverfault.com/questions/309622/what-is-a-glue-record
+
+
+
+# FIA Lab 3.2 – DNS2
+
+## Task 1 - Reverse Zone Files
+
+### Why is that useful?
+
+There are at least three interesting uses:
+
+**1.** Using DNS to automatically discover networks and gateway addresses (in case of classful networks, i.e networks that correspond to class A, B, C). The PTR records do not necessarily need to match the A records for the IP, thus they can provide an extra level of indirection which can be used to provide the gateway address for a network to clients. Slightly modified  example from RFC1035 is given below.
+
+Start of example.
+
+Suppose the domain database for the IN-ADDR.ARPA domain would contain:
+
+```
+    10.IN-ADDR.ARPA.           PTR MILNET-GW.ISI.EDU.
+    10.IN-ADDR.ARPA.           PTR GW.LCS.MIT.EDU.
+    18.IN-ADDR.ARPA.           PTR GW.LCS.MIT.EDU.
+    6.0.0.10.IN-ADDR.ARPA.     PTR MULTICS.MIT.EDU.
+```
+
+Then a program which wanted to locate gateways on net 10 would originate a query of the form  `QTYPE=PTR, QCLASS=IN, QNAME=10.IN-ADDR.ARPA.` It would receive two RRs in response:
+
+```
+    10.IN-ADDR.ARPA.           PTR MILNET-GW.ISI.EDU.
+    10.IN-ADDR.ARPA.           PTR GW.LCS.MIT.EDU.
+```
+
+The program could then originate `QTYPE=A, QCLASS=IN`  queries for `MILNET-GW.ISI.EDU. and GW.LCS.MIT.EDU.` to discover the Internet addresses of these gateways.
+
+End of example.
+
+sources: 
+1. https://tools.ietf.org/html/rfc4183
+2. https://tools.ietf.org/html/rfc1035 Chapter `3.5. IN-ADDR.ARPA domain`
+
+**2.** Establishing a certain level of trust. To configure the reverse DNS records properly the owner of the IP address needs to contact whoever controls (i.e. who bought) the actual IP block (usually this is the ISP). Because if the PTR record exists means that some authority has approved of setting up this record for this IP and domain address. (domains that have complementary A and PTR records are said to be forward-confirmed). The established level of trust is used by email servers to reject potential spammers and phishers.  They usually can not pass the PTR verification, because they use a hijacked machine for sending spam, which is commonly not a server and therefore does not have PTR records configured at the ISP.
+
+For example lets take my ip address which is `188.130.155.42`. The reverse DNS would look like `42.155.130.188.in-addr.arpa` and since `188.130.X.X` is a class B network, there is probably a DNS server for zone `130.188.in-addr.arpa` that is hosted by the ISP.  To enable reverse DNS for my server, I need to contact the ISP and request them to edit the  `130.188.in-addr.arpa` zone by adding the record below:
+
+```
+42.155.130.188.IN-ADDR.ARPA.      	PTR 	std9.os3.su.
+```
+(today reverse DNS for small classless networks is also supported: https://www.indelible.org/ink/classless/)
+
+sources:
+1. https://tools.ietf.org/html/rfc1912
+2. https://simpledns.com/kb/153/what-is-reverse-dns-and-do-i-need-it
+3. https://en.wikipedia.org/wiki/Forward-confirmed_reverse_DNS
+
+**3.** Debugging DNS hierarchy/server. For example tracking which domain the request came from. 
+
+sources: 
+1. https://dyn.com/blog/in-addr-arpa-reverse-dns/
+2. https://simpledns.com/kb/153/what-is-reverse-dns-and-do-i-need-it
+
+
+### Set up your own reverse zone for your IPv4 subnet.
 
