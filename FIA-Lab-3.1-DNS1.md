@@ -26,13 +26,6 @@ I went to the website and downloaded two files:
 
 One is the BIND9 tarball and the other is the signature.
 
-Then I calculated the SHA512 hashsum over the tarball as shown below:
-
-```bash
-$ sha512sum bind-9.14.5.tar.gz
-1b18eda5dea639f9b34e1c41b534704b0d5f64c036b766c9cfccf9bbeb586ce4ea7f0d098a5b2747e88aa403e48ad8ae0b6e560e93348f0dc7616f914671d084  bind-9.14.5.tar.gz
-```
-
 Then to check that the signature is valid I downloaded their public key from https://www.isc.org/201920pgpkey/ and imported it into GPG.
 
 ```bash
@@ -64,18 +57,21 @@ The signature is a detached signature, so its provided as a separate piece of in
 
 Signing is supposed to provide integrity and authentication of the tarball. The hashsum is normally expected to provide only the integrity of the data.
 
-In this particular case however the chain of trust does not get build. Therefore I can indeed verify that the tarball was signed with a key pair that is published on the official ISC website. I know that the website is official because the access is via HTTPS. However I still do not know if the key pair published on the official ISC website is the key pair that the ISC main administator used to sign the tarball. Maybe the webserver was compromised, the tarball was substituted and the key pair was substituted as well, so the tarball was signed with a malicious private key and the malicious public key was published on the official website.
+In this particular case however the chain of trust does not get build. Therefore I can indeed verify that the tarball was signed with a key pair that is published on the official ISC website. I know that the website is official because the access is via HTTPS. However I still do not know if the key pair published on the official ISC website is the key pair that the ISC main administrator used to sign the tarball. Maybe the webserver was compromised, the tarball was substituted and the key pair was substituted as well, so the tarball was signed with a malicious private key and the malicious public key was published on the official website.
 
-What I want to verify  is that I have the tarball that was signed (or hash calculated) by the ISC main administator.
+What I want to verify  is that I have the tarball that was signed (or hash calculated) by the ISC main administrator.
 
 The chain of trust certificates can not be build (as the gpg output shows above), therefore the signature suffers exactly the same problem as the hashsum: an attacker can change the tarball and the hashsum/public key and it would not be noticed automatically. 
 
 The signing mechanism can fix this if the ISC main administrator would get his public key signed by other authorities. Then the chain of trust could be build backwards until the certificates that I actually trust could be reached. In this case when the tarball would be substituted on the webserver,  gpg would rightfully warn that the chain of trust could not be build and the file is not to be trusted.
 
-An interesting note: The are ways to significantly increases the level of security by distibuting the hashsum/public key via another channel. For example if the hashsum for the tarball was published on the official ISC twitter account, then by matching the hashsums I could be much more confident that the tarball was the one uploaded by the ISC main administrator, because its quite unlikely that the twitter account was compromised simultaneously with the webserver.
+An interesting note: The are ways to significantly increases the level of security by distributing the hashsum/public key via another channel. For example if the hashsum for the tarball was published on the official ISC twitter account, then by matching the hashsums I could be much more confident that the tarball was the one uploaded by the ISC main administrator, because its quite unlikely that the twitter account was compromised simultaneously with the webserver.
 
-(interesting links:: https://www.gnupg.org/gph/en/manual/x334.html and https://serverfault.com/questions/569911/how-to-verify-an-imported-gpg-key and
-https://crypto.stackexchange.com/questions/5646/what-are-the-differences-between-a-digital-signature-a-mac-and-a-hash)
+interesting links: 
+
+1. https://www.gnupg.org/gph/en/manual/x334.html
+2. https://serverfault.com/questions/569911/how-to-verify-an-imported-gpg-key
+3. https://crypto.stackexchange.com/questions/5646/what-are-the-differences-between-a-digital-signature-a-mac-and-a-hash
 
 ### 1.2 - Documentation & Compiling
 
@@ -84,7 +80,7 @@ I decided not to use the default Ubuntu packages and went along with compiling f
 Unbound source: https://nlnetlabs.nl/projects/unbound/download/
 NSD source: https://www.nlnetlabs.nl/projects/nsd/download/
 
-Before compiling unbound in order to simplify the dependency chase I looked at the runtime  dependencies for the Ubuntu unbound package as shown below:
+Before compiling unbound I had to actually install the gcc compiler and other build tools. Then in order to simplify the dependency chase I looked at the runtime  dependencies for the Ubuntu unbound package as shown below:
 
 ```
 $ apt-cache depends unbound
@@ -345,7 +341,7 @@ There are a number of useful commands that the server understands such as:
 4. create/read/update/delete a zone
 5. change server mode: caching, caching+forwarding, master, slave
 
-unbound-control provides a way to access the functionallity above remotely.
+unbound-control provides a way to access the functionality above remotely.
 
 ### What do you need to put in resolv.conf (and/or other files) to use your own name server?
 
@@ -469,14 +465,17 @@ tst.std9.os3.su.       	IN      A       68.183.92.166
 
 ; Other records
 www.std9.os3.su.   	IN      CNAME   notes.std9.os3.su.
-notes.std9.os3.su. 	IN      CNAME   temach.github.io.
+notes.std9.os3.su. 	IN      CNAME   notes.rinserepeat.site.
 
 ; Mail
 std9.os3.su.                       IN      MX      10                                  mail.std9.os3.su.
 std9.os3.su.                       IN      MX      20                                  ansible.std9.os3.su.
 ```
 
+(source: https://tools.ietf.org/html/rfc1034)
+
 The resulting nsd.conf is shown below:
+
 ```
 server:
 	server-count: 1
@@ -523,24 +522,29 @@ std9.os3.su.	3600	IN	SOA	ns0.std9.os3.su. admin.std9.os3.su. 2019090600 10800 36
 
 Request double CNAME:
 ```
-drill www.std9.os3.su
-;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 21150
-;; flags: qr aa rd ; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 0 
+artem@ nsd$ drill www.std9.os3.su
+;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 3351
+;; flags: qr rd ra ; QUERY: 1, ANSWER: 7, AUTHORITY: 0, ADDITIONAL: 0 
 ;; QUESTION SECTION:
 ;; www.std9.os3.su.	IN	A
 
 ;; ANSWER SECTION:
-www.std9.os3.su.	3600	IN	CNAME	notes.std9.os3.su.
-notes.std9.os3.su.	3600	IN	CNAME	temach.github.io.
+www.std9.os3.su.	3599	IN	CNAME	notes.std9.os3.su.
+notes.std9.os3.su.	3599	IN	CNAME	notes.rinserepeat.site.
+notes.rinserepeat.site.	3599	IN	CNAME	temach.github.io.
+temach.github.io.	3599	IN	A	185.199.110.153
+temach.github.io.	3599	IN	A	185.199.109.153
+temach.github.io.	3599	IN	A	185.199.111.153
+temach.github.io.	3599	IN	A	185.199.108.153
 
 ;; AUTHORITY SECTION:
 
 ;; ADDITIONAL SECTION:
 
-;; Query time: 0 msec
-;; SERVER: 127.0.0.1
-;; WHEN: Fri Sep  6 04:50:01 2019
-;; MSG SIZE  rcvd: 83
+;; Query time: 2473 msec
+;; SERVER: 8.8.8.8
+;; WHEN: Sat Sep  7 18:10:35 2019
+;; MSG SIZE  rcvd: 183
 ```
 
 Request with additional info:
@@ -568,7 +572,16 @@ ns0.std9.os3.su.	3600	IN	A	188.130.155.42
 
 
 ### What important requirement is not yet met for your subdomain?
-Currently the server claims to be the authoritative server for std9.os3.su. However there needs to be some way of actually proving this claim. The proof would be that the higher level DNS server delegates the std9.so3.su. zone to my server with IP `188.130.155.42`. 
+Currently the server claims to be the authoritative server for std9.os3.su. However there needs to be some way of actually proving this claim. The proof would be that the higher level DNS server delegates the std9.so3.su. zone to my server with IP `188.130.155.42`.  Also keeping in mind that the DNS server for the zone `std9.os3.su` is on zone itself  as `ns0.std9.os3.su` the authoritative server for os3.su. needs to have glue records added.
+
+The zone file for `os3.su.` needs to be modified to include the following records as shown below:
+```
+; sub-zone delegation
+std9.os3.su. IN NS ns0.std9.os3.su.
+
+; glue record
+ns0.std9.os3.su. IN A 188.130.155.42
+```
 
 We can see that the domain does not resolve currently:
 ```
@@ -644,6 +657,7 @@ os3.su.			1800	IN	NS	ns2.os3.su.
 ;; Received 123 bytes from 62.210.16.8#53(ns2.os3.su) in 71 ms
 ```
 
-The IP `62.210.110.7` is actually `os3.su.` its a default responce for unknown records in the `os3.su` zone (administered by `p.braun@innopolis.ru`).
+The IP `62.210.110.7` is actually `os3.su.` so its a default response for unknown records in the `os3.su` zone (administered by `p.braun@innopolis.ru`).
 
 (source: https://dyn.com/blog/domain-name-system-dns-delegation-the-zone-authority-chain/)
+
