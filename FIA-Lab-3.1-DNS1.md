@@ -795,7 +795,14 @@ zone:
 
 ### Show that a reverse lookup works.
 
-Reverse lookup is shown below:
+Reverse lookup for ip address 188.130.155.42 agains local NSD server is shown below:
+```
+$ dig +noall +answer -x 188.130.155.42 @127.0.0.1
+42.155.130.188.in-addr.arpa. 3600 IN	PTR	std9.os3.su.
+```
+(source: https://linuxcommando.blogspot.com/2008/07/how-to-do-reverse-dns-lookup.html)
+
+Reverse lookup for domain name against local NSD server is shown below:
 ```
 $ dig 42.155.130.188.in-addr.arpa @127.0.0.1
 
@@ -819,32 +826,6 @@ $ dig 42.155.130.188.in-addr.arpa @127.0.0.1
 ;; WHEN: Sat Sep 07 23:37:47 MSK 2019
 ;; MSG SIZE  rcvd: 113
 ```
-
-And check the PTR server specifically:
-```
-$ dig ptr 42.155.130.188.in-addr.arpa @127.0.0.1
-
-; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> ptr 42.155.130.188.in-addr.arpa @127.0.0.1
-;; global options: +cmd
-;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 56159
-;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
-;; WARNING: recursion requested but not available
-
-;; OPT PSEUDOSECTION:
-; EDNS: version: 0, flags:; udp: 4096
-;; QUESTION SECTION:
-;42.155.130.188.in-addr.arpa.	IN	PTR
-
-;; ANSWER SECTION:
-42.155.130.188.in-addr.arpa. 3600 IN	PTR	std9.os3.su.
-
-;; Query time: 0 msec
-;; SERVER: 127.0.0.1#53(127.0.0.1)
-;; WHEN: Sat Sep 07 23:38:14 MSK 2019
-;; MSG SIZE  rcvd: 81
-```
-
 (source: https://dnswatch.com/dns-docs/NSD/)
 
 ## Task 2 - Delegating Your Own Zone
