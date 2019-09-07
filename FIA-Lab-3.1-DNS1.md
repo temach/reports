@@ -457,7 +457,7 @@ own public IP. We will use the second MX record later on.
 2. 4 A or AAAA records. Use your imagination.
 3. 2 CNAME records.
 
-The resulting zone config `/usr/local/etc/nsd/std9.os3.su.zone`is shown below:
+The resulting zone config `/usr/local/etc/nsd/std9.os3.su.zone` is shown below:
 ```
 ; source: http://www.thecave.info/create-dns-record-for-subdomain
 ; source: http://www.thecave.info/add-new-zone-to-bind-dns-server
@@ -488,11 +488,11 @@ tst.std9.os3.su.       	IN      A       68.183.92.166
 
 ; Other records
 www.std9.os3.su.   	IN      CNAME   notes.std9.os3.su.
-notes.std9.os3.su. 	IN      CNAME   notes.rinserepeat.site.
+notes.std9.os3.su. 	IN      CNAME   temach.github.io.
 
 ; Mail
-std9.os3.su.                       IN      MX      10                                  mail.std9.os3.su.
-std9.os3.su.                       IN      MX      20                                  ansible.std9.os3.su.
+std9.os3.su.		IN      MX      10		mail.std9.os3.su.
+std9.os3.su.		IN      MX      20		ansible.std9.os3.su.
 ```
 
 (source: https://tools.ietf.org/html/rfc1034)
@@ -520,9 +520,9 @@ Showing the forward mapping zone file in the log file using the command below (t
 
 ![artem@artem-209-HP-EliteDesk-800-G1-SFF: -usr-local-etc-nsd_173](FIA-Lab-3.1-DNS1.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20-usr-local-etc-nsd_173.png)
 
-
 The next step was setting the nameserver to localhost in /etc/resolv.conf to interrogate the NSD server.
 Request SOA:
+
 ```
 $ drill std9.os3.su
 ;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 13282
@@ -543,34 +543,33 @@ std9.os3.su.	3600	IN	SOA	ns0.std9.os3.su. admin.std9.os3.su. 2019090600 10800 36
 ;; MSG SIZE  rcvd: 75
 ```
 
-Request double CNAME:
+Request via CNAME:
 ```
-artem@ nsd$ drill www.std9.os3.su
-;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 3351
-;; flags: qr rd ra ; QUERY: 1, ANSWER: 7, AUTHORITY: 0, ADDITIONAL: 0 
+$ drill www.std9.os3.su
+;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 14844
+;; flags: qr rd ra ; QUERY: 1, ANSWER: 6, AUTHORITY: 0, ADDITIONAL: 0 
 ;; QUESTION SECTION:
 ;; www.std9.os3.su.	IN	A
 
 ;; ANSWER SECTION:
-www.std9.os3.su.	3599	IN	CNAME	notes.std9.os3.su.
-notes.std9.os3.su.	3599	IN	CNAME	notes.rinserepeat.site.
-notes.rinserepeat.site.	3599	IN	CNAME	temach.github.io.
-temach.github.io.	3599	IN	A	185.199.110.153
-temach.github.io.	3599	IN	A	185.199.109.153
-temach.github.io.	3599	IN	A	185.199.111.153
-temach.github.io.	3599	IN	A	185.199.108.153
+www.std9.os3.su.	2569	IN	CNAME	notes.std9.os3.su.
+notes.std9.os3.su.	2569	IN	CNAME	temach.github.io.
+temach.github.io.	2569	IN	A	185.199.111.153
+temach.github.io.	2569	IN	A	185.199.108.153
+temach.github.io.	2569	IN	A	185.199.110.153
+temach.github.io.	2569	IN	A	185.199.109.153
 
 ;; AUTHORITY SECTION:
 
 ;; ADDITIONAL SECTION:
 
-;; Query time: 2473 msec
+;; Query time: 32 msec
 ;; SERVER: 8.8.8.8
-;; WHEN: Sat Sep  7 18:10:35 2019
+;; WHEN: Sat Sep  7 21:21:43 2019
 ;; MSG SIZE  rcvd: 183
 ```
 
-Request with additional info:
+Request another machine:
 ```
 $ drill ansible.std9.os3.su.
 ;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 28530
@@ -699,7 +698,7 @@ There are at least three interesting uses:
 
 **1.** Using DNS to automatically discover networks and gateway addresses (in case of classful networks, i.e networks that correspond to class A, B, C). The PTR records do not necessarily need to match the A records for the IP, thus they can provide an extra level of indirection which can be used to provide the gateway address for a network to clients. Slightly modified  example from RFC1035 is given below.
 
-Start of example.
+*Start of example*.
 
 Suppose the domain database for the IN-ADDR.ARPA domain would contain:
 
@@ -719,7 +718,7 @@ Then a program which wanted to locate gateways on net 10 would originate a query
 
 The program could then originate `QTYPE=A, QCLASS=IN`  queries for `MILNET-GW.ISI.EDU. and GW.LCS.MIT.EDU.` to discover the Internet addresses of these gateways.
 
-End of example.
+*End of example*.
 
 sources: 
 1. https://tools.ietf.org/html/rfc4183
@@ -727,11 +726,6 @@ sources:
 
 **2.** Establishing a certain level of trust. To configure the reverse DNS records properly the owner of the IP address needs to contact whoever controls (i.e. who bought) the actual IP block (usually this is the ISP). Because if the PTR record exists means that some authority has approved of setting up this record for this IP and domain address. (domains that have complementary A and PTR records are said to be forward-confirmed). The established level of trust is used by email servers to reject potential spammers and phishers.  They usually can not pass the PTR verification, because they use a hijacked machine for sending spam, which is commonly not a server and therefore does not have PTR records configured at the ISP.
 
-For example lets take my ip address which is `188.130.155.42`. The reverse DNS would look like `42.155.130.188.in-addr.arpa` and since `188.130.X.X` is a class B network, there is probably a DNS server for zone `130.188.in-addr.arpa` that is hosted by the ISP.  To enable reverse DNS for my server, I need to contact the ISP and request them to edit the  `130.188.in-addr.arpa` zone by adding the record below:
-
-```
-42.155.130.188.IN-ADDR.ARPA.      	PTR 	std9.os3.su.
-```
 (today reverse DNS for small classless networks is also supported: https://www.indelible.org/ink/classless/)
 
 sources:
@@ -748,3 +742,111 @@ sources:
 
 ### Set up your own reverse zone for your IPv4 subnet.
 
+My ip address is `188.130.155.42`. The reverse DNS would look like `42.155.130.188.in-addr.arpa` and since `188.130.X.X` is a class B network, there is probably a DNS server for zone `130.188.in-addr.arpa` that is hosted by the ISP.  To enable reverse DNS for my server, I need to contact the ISP and request them to edit the  `130.188.in-addr.arpa` zone by adding the record below:
+
+```
+42.155.130.188.IN-ADDR.ARPA.      	PTR 	std9.os3.su.
+```
+
+Unfortunatelly this can only be done if I contact the innopolis university IT department and get them to contact the ISP. So instead I will setup the local server to serve the `130.188.in-addr.arpa` zone and imitate the validation of PTR record by directing all DNS requests through this local server.
+
+Below is the config for `130.188.in-addr.arpa` zone:
+```
+$ cat 130.188.in-addr.arpa.zone 
+; source: https://dnswatch.com/dns-docs/NSD/
+; Reverse zone file for std9.os3.su
+;
+$TTL 3600
+; Zone configuration (SOA) record
+130.188.in-addr.arpa.       IN      SOA    ns0.std9.os3.su. admin.std9.os3.su. (
+                        2019090700  ; Serial
+                        10800       ; Refresh
+                        3600        ; Retry
+                        604800      ; Expire
+                        38400 )     ; Negative Cache TTL
+; Nameserver records
+42.155.130.188.in-addr.arpa.      IN 	PTR	std9.os3.su.
+```
+
+Updated config for NSD server is shown below:
+```
+$ cat nsd.conf
+server:
+	server-count: 1
+	ip-address: 0.0.0.0
+	ip-address: ::0
+	port: 53
+	verbosity: 4
+	username: nsd
+	logfile: "/var/log/nsd.log"
+remote-control:
+	control-enable: yes
+	control-interface: /var/tmp/nsd-control.pipe
+zone:
+ 	name: "std9.os3.su"
+ 	zonefile: "std9.os3.su.zone"
+zone:
+ 	name: "130.188.in-addr.arpa"
+ 	zonefile: "130.188.in-addr.arpa.zone"
+```
+
+(source: https://dnswatch.com/dns-docs/NSD/)
+
+
+### Show that a reverse lookup works.
+
+Reverse lookup is shown below:
+```
+$ dig 42.155.130.188.in-addr.arpa @127.0.0.1
+
+; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> 42.155.130.188.in-addr.arpa @127.0.0.1
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 60
+;; flags: qr aa rd; QUERY: 1, ANSWER: 0, AUTHORITY: 1, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+;; QUESTION SECTION:
+;42.155.130.188.in-addr.arpa.	IN	A
+
+;; AUTHORITY SECTION:
+130.188.in-addr.arpa.	3600	IN	SOA	ns0.std9.os3.su. admin.std9.os3.su. 2019090700 10800 3600 604800 38400
+
+;; Query time: 0 msec
+;; SERVER: 127.0.0.1#53(127.0.0.1)
+;; WHEN: Sat Sep 07 23:37:47 MSK 2019
+;; MSG SIZE  rcvd: 113
+```
+
+And check the PTR server specifically:
+```
+$ dig ptr 42.155.130.188.in-addr.arpa @127.0.0.1
+
+; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> ptr 42.155.130.188.in-addr.arpa @127.0.0.1
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 56159
+;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+;; WARNING: recursion requested but not available
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags:; udp: 4096
+;; QUESTION SECTION:
+;42.155.130.188.in-addr.arpa.	IN	PTR
+
+;; ANSWER SECTION:
+42.155.130.188.in-addr.arpa. 3600 IN	PTR	std9.os3.su.
+
+;; Query time: 0 msec
+;; SERVER: 127.0.0.1#53(127.0.0.1)
+;; WHEN: Sat Sep 07 23:38:14 MSK 2019
+;; MSG SIZE  rcvd: 81
+```
+
+(source: https://dnswatch.com/dns-docs/NSD/)
+
+## Task 2 - Delegating Your Own Zone
+
+### How did you set up the subdomains and their delegation?
