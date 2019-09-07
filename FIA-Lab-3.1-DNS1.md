@@ -16,9 +16,11 @@ I have an odd table number and so working with Unbound+NDS.
 
 The signature is used to verify the integrity and the authenticity of the download. If only a hash is used then this can be used to verify the integrity of the data, but can not verify the authenticity.
 
+This question is discussed in much more detail in the next point, after verifying the BIND9 tarball (under the heading `Discussion of using signature vs hashsum`).
+
 #### Download the BIND tarball (also if you are doing the Unbound+NSD part) and check its validity using one of the signatures.
 
-I went to the website and downloaded two files:
+I went to the website and downloaded two files from https://www.isc.org/download/:
 ```bash
 -rw-rw-r--  1 artem artem    6313555 Sep  5 01:23  bind-9.14.5.tar.gz
 -rw-rw-r--  1 artem artem        833 Sep  5 01:23  bind-9.14.5.tar.gz.sha512.asc
@@ -52,7 +54,21 @@ The signature is a detached signature, so its provided as a separate piece of in
 
 (source: https://www.isc.org/pgpkey/ and https://www.gnupg.org/gph/en/manual/x135.html).
 
-#### Which kind of signature is the best one to use? Why?
+To verify the `unbound-1.9.3` tarball, we can compare the hashsum with the one displayed on the website.
+
+Calculate hashsum of file that was downloaded:
+```
+$ sha256sum unbound-1.9.3.tar.gz 
+1b55dd9170e4bfb327fb644de7bbf7f0541701149dff3adf1b63ffa785f16dfa  unbound-1.9.3.tar.gz
+```
+
+And we can see that it matches what we find online at https://nlnetlabs.nl/downloads/unbound/unbound-1.9.3.tar.gz.sha256:
+```
+1b55dd9170e4bfb327fb644de7bbf7f0541701149dff3adf1b63ffa785f16dfa
+```
+
+
+**Discussion of using signature vs hashsum**
 
 Signing is supposed to provide integrity and authentication of the tarball. The hashsum is normally expected to provide only the integrity of the data. 
 
@@ -71,6 +87,11 @@ interesting links:
 1. https://www.gnupg.org/gph/en/manual/x334.html
 2. https://serverfault.com/questions/569911/how-to-verify-an-imported-gpg-key
 3. https://crypto.stackexchange.com/questions/5646/what-are-the-differences-between-a-digital-signature-a-mac-and-a-hash
+
+#### Which kind of signature is the best one to use? Why?
+
+The signature is understood to be the result of encrypting the hash of the file with a private key. There are different ways to calculate the hash of the file. In particular the signing procedure that relies on `sha1sum` is not to be trusted because it was shown that ways exist to generate different files with the same sha1sum i.e. predictably get a sha1 collision (source: https://shattered.io/). The sha1sum produces a 20-byte message digest, one fix is to use a larger message digest. For example sha512sum produces a 64-bytes (512-bits) message digest and there is no known way to reliably produce a hash collision with modern technology. When downloading BIND9 tarball one of the options is simply called `ASC`, which is actually the exactly same file as downloaded by the option `SHA1`.
+
 
 ### 1.2 - Documentation & Compiling
 
@@ -831,3 +852,33 @@ $ dig 42.155.130.188.in-addr.arpa @127.0.0.1
 ## Task 2 - Delegating Your Own Zone
 
 ### How did you set up the subdomains and their delegation?
+
+
+
+
+
+
+
+
+
+
+
+## Appendix
+
+There is an interesting website that gives you an overview of the topology of your DNS zones.
+
+The result for `std9.os3.su` (availiable at https://www.buddyns.com/delegation-lab/std9.os3.su) is shown below (This was before delegating a domain to a teammate):
+
+![Selection_177](FIA-Lab-3.1-DNS1.assets/Selection_177.png)
+
+
+
+There are also some interesting comments provided such as shown below:
+
+![Selection_176](FIA-Lab-3.1-DNS1.assets/Selection_176.png)
+
+
+
+And finally the delegation trace:
+
+![Selection_178](FIA-Lab-3.1-DNS1.assets/Selection_178.png)
