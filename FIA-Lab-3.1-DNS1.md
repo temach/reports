@@ -462,7 +462,7 @@ Server finally started with the following line in the log file `/var/log/nsd.log
 
 Running the server with a sample zone file was uneventful:
 ```
-$ nsd-checkconf -z std9.zone nsd.conf
+$ nsd-checkconf -z std9.os3.su.zone nsd.conf
 $ sudo nsd-control start
 ```
 
