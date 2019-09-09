@@ -98,6 +98,7 @@ The signature is understood to be the result of encrypting the hash of the file 
 I decided not to use the default Ubuntu packages and went along with compiling from release tarball. 
 
 Unbound source: https://nlnetlabs.nl/projects/unbound/download/
+
 NSD source: https://www.nlnetlabs.nl/projects/nsd/download/
 
 Before compiling unbound I had to actually install the gcc compiler and other build tools. Then in order to simplify the dependency chase I looked at the runtime  dependencies for the Ubuntu unbound package as shown below:
@@ -133,7 +134,7 @@ You can restart ./configure --with-libevent=no to use a builtin alternative.
 
 Since there was a workaround, I compiled without libevent as shown below:
 ```
-artem@ nsd-4.2.2$ ./configure --with-configdir=/usr/local/etc/nsd --with-libevent=no
+$ ./configure --with-configdir=/usr/local/etc/nsd --with-libevent=no
 
 ```
 
@@ -144,12 +145,12 @@ $ ./configure
 
 The resulting configuration files are placed as requested:
 ```
-artem@ unbound-1.9.3$ tree /usr/local/etc/nsd/
+$ tree /usr/local/etc/nsd/
 /usr/local/etc/nsd/
 └── nsd.conf.sample
 
 0 directories, 1 file
-artem@ unbound-1.9.3$ tree /usr/local/etc/unbound/
+$ tree /usr/local/etc/unbound/
 /usr/local/etc/unbound/
 └── unbound.conf
 
@@ -189,7 +190,7 @@ DNSSEC Verdicts
 
 (source: https://askubuntu.com/questions/1149364/why-is-resolvectl-no-longer-included-in-bionic-and-whats-the-alternative and https://www.ctrl.blog/entry/systemd-resolved.html)
 
-This are my usage statistics for the last 30 minutes, because previously I had disabled the systemd-resolved.service. Every cache hit is a success. To check the effectiveness of the caching server we can also compare the time to resolve a DNS query (using `drill` utility from `ldnsutils` package) from the remove server vs the cache.
+This are my usage statistics for the last 30 minutes, because previously I had disabled the systemd-resolved.service. Every cache hit is a success. To check the effectiveness of the caching server we can also compare the time to resolve a DNS query (using `drill` utility from `ldnsutils` package) from the remote server vs the cache.
 
 Below is the result of sending two queries to a government website in New Zeland, note the `Query time` parameter that is 0 for the second query because the query result is cached:
 
@@ -286,7 +287,7 @@ Finally checking the config was successful:
 ```
 $ unbound-checkconf 
 unbound-checkconf: no errors in /usr/local/etc/unbound/unbound.conf
-artem@ unbound$ echo $?
+$ echo $?
 0
 ```
 
@@ -320,19 +321,19 @@ tcp6       0      0 ::1:631                 :::*                    LISTEN
 
 Then I realized that I accidentally enabled libvirt network and so I turned it off as shown below:
 ```
-artem@ unbound$ virsh net-list
+$ virsh net-list
  Name                 State      Autostart     Persistent
 ----------------------------------------------------------
  default              active     yes           yes
 
-artem@ unbound$ virsh net-destroy default
+$ virsh net-destroy default
 Network default destroyed
 
-artem@ unbound$ virsh net-list
+$ virsh net-list
  Name                 State      Autostart     Persistent
 ----------------------------------------------------------
 
-artem@ unbound$ netstat -lnt
+$ netstat -lnt
 Active Internet connections (only servers)
 Proto Recv-Q Send-Q Local Address           Foreign Address         State      
 tcp        0      0 127.0.0.1:631           0.0.0.0:*               LISTEN     
@@ -399,15 +400,15 @@ nameserver 127.0.0.1
 
 Commands to start unbound server, check that its listening on port 53 and find its process id are shown below:
 ```
-artem@ unbound$ sudo unbound-control start
-artem@ unbound$ netstat -lnt
+$ sudo unbound-control start
+$ netstat -lnt
 Active Internet connections (only servers)
 Proto Recv-Q Send-Q Local Address           Foreign Address         State      
 tcp        0      0 0.0.0.0:53              0.0.0.0:*               LISTEN     
 tcp        0      0 127.0.0.1:631           0.0.0.0:*               LISTEN     
 tcp6       0      0 :::53                   :::*                    LISTEN     
 tcp6       0      0 ::1:631                 :::*                    LISTEN     
-artem@ unbound$ ps aux | grep unbound
+$ ps aux | grep unbound
 root      4469  0.1  0.0  23992  5436 ?        Ss   01:56   0:00 unbound -c /usr/local/etc/unbound/unbound.conf
 artem     4473  0.0  0.0  21532  1116 pts/0    S+   01:56   0:00 grep --color=auto unbound
 ```
@@ -816,7 +817,7 @@ zone:
 
 ### Show that a reverse lookup works.
 
-Reverse lookup for ip address 188.130.155.42 agains local NSD server is shown below:
+Reverse lookup for ip address 188.130.155.42 against local NSD server is shown below:
 ```
 $ dig +noall +answer -x 188.130.155.42 @127.0.0.1
 42.155.130.188.in-addr.arpa. 3600 IN	PTR	std9.os3.su.
