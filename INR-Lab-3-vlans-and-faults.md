@@ -326,3 +326,84 @@ Start a wireshark capture between the MikroTik Gateway and Internal switch. The 
 
 
 We can clearly see that the selected request contains the 802.1Q information specifying in particular the Virtual LAN ID to be = 3. We can also see CDP (Cisco Discovery Protocol) and MNDP (MikroTik Neighbour Discovery Protocol) that are being broadcast on all three possible interfaces: ether2, blueVLAN and greenVLAN. The traffic that is going to the blueVLAN is shown by wireshark as having a `Port ID: blueVLAN` in its short description. The situation is exactly the same for the greenVLAN and just normal LAN traffic.
+
+
+
+## Task 2 - Fault Tolerance
+
+
+
+### 1. What is Link Agregation ?
+
+A way to use multiple Ethernet adapters that connect the sending and the receiving side in order to achieve higher throughput speeds and/or redundancy (and hence safety).
+
+
+
+### How does it work (breifly.) ?
+
+By connecting two machines with full duplex point-to-point links whose bandwidth is higher then the bandwidth of the individual links. Ethernet channels are aggregated into one Link Aggregation Group. This LAG is presented to the client as an ethernet port. This  allows  much faster transfer speeds and improved safety due to link redundancy. 
+
+
+### What are the possible configuration modes ?
+
+There are two primary modes for the Link Aggregation:
+
+1.  Passive - the software listens on a LAG for a Link Aggregation Control Protocol (LACP) request.
+2. Active - the program initiates the LACP request.
+
+(source: https://www.ibm.com/support/knowledgecenter/en/ssw_aix_71/network/etherchannel_intro.html)
+
+
+### 2. Use link agregation between Web and the Gateway so that you have Load Balancing and Fault Tolerance .
+
+Initially we need to choose the type of network bonding. There are 7 supported modes:
+1. `mode=0 (balance-rr)`  Round-robin is the default mode.  Has both fault tolerance and load balancing features.
+
+2. `mode-1 (active-backup)` Active-backup policy. Only one slave is active, the another one is waiting and will start in case of failure.
+
+3. `mode=2 (balance-xor)` A XOR (exclusive or) mode. The source MAC address is XOR’d with destination MAC address for providing load balancing and fault tolerance.
+
+4. `mode=3 (broadcast)` Transmits everything on all slave interfaces. It provides fault tolerance. Useful only for special purposes.
+
+5. `mode=4 (802.3ad)`  Dynamic Link Aggregation mode that creates aggregation groups that have the same speed. Requires support for IEEE 802.3ad dynamic link on intermediate switches. 
+
+6. `mode=5 (balance-tlb)` Adaptive transmit load balancing. The outgoing traffic is distributed based on the current load on each slave and the incoming traffic is received by the current slave. This mode does not require any special switch support.
+
+7. `mode=6 (balance-alb)` This mode is called adaptive load balancing. This mode does not require any special switch support.
+
+(source: https://www.cloudibee.com/network-bonding-modes/ and https://www.interserver.net/tips/kb/network-bonding-types-network-bonding/ )
+
+The first step is to create the wired links between the Gateway, the switch and the Web machine as shown below:
+
+![lab-2-ipv4-and-ipv6 - GNS3_222](INR-Lab-3-vlans-and-faults.assets/lab-2-ipv4-and-ipv6%20-%20GNS3_222.png)
+
+
+The next step is to create bonds. I decided to use `balance-rr` mode for the bonds because it does not require any special switch support and provides fault tolerance with load balancing features. Therefore I have to create the following bonds: 
+1. bond e0 with e1 on Web
+2. bond ether1 with ether4 on Gateway
+
+The resulting configuration for Web is shown below:
+
+![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(Web)%20-%20TigerVNC_224.png) - TigerVNC_224](../../../Pictures/QEMU%20(Web)%20-%20TigerVNC_224.png)
+
+
+
+IBelow is the output if `ip a` for the Web machine:
+
+![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(Web)%20-%20TigerVNC_223.png) - TigerVNC_223](../../../Pictures/QEMU%20(Web)%20-%20TigerVNC_223.png)
+
+sources: 
+
+1. https://unix.stackexchange.com/questions/128439/good-detailed-explanation-of-etc-network-interfaces-syntax
+2. https://backdrift.org/lacp-configure-network-bonding-linux
+
+
+
+Configuration on the Gateway is shown below (inside Interfaces->Bonding):
+
+![admin@192.168.122.189 (INR-Lab-3-vlans-and-faults.assets/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_225.png) - WinBox v6.44.2 on CHR (x86_64)_225](../../../Pictures/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_225.png)
+
+Then we must delete ip configuration for the ether1 and configure the ip address for bonding1 interface. The final configuration is shown on the screenshot below:
+
+![admin@192.168.122.189 (INR-Lab-3-vlans-and-faults.assets/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_226.png) - WinBox v6.44.2 on CHR (x86_64)_226](../../../Pictures/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_226.png)
+
