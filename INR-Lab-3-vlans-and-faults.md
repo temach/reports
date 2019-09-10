@@ -191,27 +191,70 @@ Ethernet 802.3 packet after being tagged with VLAN tag is shown below:
 
 ![Selection_197](INR-Lab-3-vlans-and-faults.assets/Selection_197.png)
 
+sources:
+1. `Interconnections: Bridges, Routers, Switches, and Internetworking Protocols`  Addison-Wesley Professional (1999) by Radia Perlman
+2. https://study-ccna.com/layer-2-switching/
+3. https://networkengineering.stackexchange.com/questions/5300/what-is-the-difference-between-ethernet-ii-and-802-3-ethernet
+4. https://community.cisco.com/t5/switching/ethernet-802-3-vs-ethernet-ii-frame/td-p/2718996
+
 ### What do we mean by Native VLAN ?
 
 There are two types of switch ports:
 1. Access - only one VLAN and the traffic on the VLAN is not tagged
 2. Trunk - multiple VLANs (i.e. there are more switches downstream) and the port is ready to receive and send tagged VLAN traffic.
 
-Native vlan on a trunk port is the default vlan to which any untagged traffic on the trunk port is assigned. Default behavior is that vlan 1 is the native vlan.
+Native vlan on a trunk port is the default vlan to which any untagged traffic on the trunk port is assigned. Default behavior is that vlan with `VLAN ID = 1` is the native vlan.
 
 Thus trunk ports can connect endpoints that support VLAN tagging. Whereas access ports can be used to connect a single VLAN to dumb switches/routers/clients that don't support VLAN tagging (or that should not be aware of it by network design).
 
 To rephrase access port is used to get traffic into the VLAN network by tagging it, inside the network traffic navigates between trunk ports that understand VLAN tags, and the traffic leaves the system through another access port without any VLAN tag. This way VLAN is transparent to end clients. 
 
 sources:
-1. `Interconnections: Bridges, Routers, Switches, and Internetworking Protocols`  Addison-Wesley Professional (1999) by Radia Perlman
-2. https://study-ccna.com/layer-2-switching/
-3. https://networkengineering.stackexchange.com/questions/5300/what-is-the-difference-between-ethernet-ii-and-802-3-ethernet
-4. https://community.cisco.com/t5/switching/ethernet-802-3-vs-ethernet-ii-frame/td-p/2718996
-5. https://www.quora.com/What-is-native-Vlan-2
-6. https://serverfault.com/questions/385963/access-ports-versus-trunk-ports
-
+1. https://serverfault.com/questions/385963/access-ports-versus-trunk-ports
+2. https://study-ccna.com/configuring-access-trunk-ports/
+3. https://networkengineering.stackexchange.com/questions/6483/why-and-how-are-ethernet-vlans-tagged
+4. https://www.quora.com/What-is-native-Vlan-2
 
 ### 5. Configure the VLANs on the switches to isolate the two virtual networks as shown on the diagram.
 
+The configuration for Administration switch sets up access ports on swp2 and swp3. The swp2 tags/untags the packets with id 200, the swp3 tags/untags packets with id 300.  The configuration is shown below:
 
+![Administration_201](INR-Lab-3-vlans-and-faults.assets/Administration_201.png)
+
+The ITDepartment switch only needs to have the bridge become vlan aware and setup the access port on swp2 configured for vlan with id 300. The configuration is shown below:
+
+![ITDepartment_200](INR-Lab-3-vlans-and-faults.assets/ITDepartment_200.png)
+
+The configuration for the Internal switch does not need any special settings appart from becoming vlan aware. The configuration for Internal switch is shown below:
+
+![Internal_198](INR-Lab-3-vlans-and-faults.assets/Internal_198.png)
+
+### 6. Ping between ITManager and HR , do you have replies ? Ping between ITManager and Management , do you have replies ?
+
+Check that HR can not ping anyone as shown below:
+
+![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(HR)%20-%20TigerVNC_199.png) - TigerVNC_199](../../../Pictures/QEMU%20(HR)%20-%20TigerVNC_199.png)
+
+
+Check that ITManager can ping Management:
+
+![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(ITManager)%20-%20TigerVNC_205.png) - TigerVNC_205](../../../Pictures/QEMU%20(ITManager)%20-%20TigerVNC_205.png)
+
+
+
+### Capture the traffic of the last ping and show in the packet the VLANs indication.
+
+We can check how the packet is structured and confirm that ping works with Wireshark listening between Internal switch and Administration switch as shown below:
+
+![Capturing from Standard input [Internal swp2 to Administration swp1]_202](INR-Lab-3-vlans-and-faults.assets/Capturing%20from%20Standard%20input%20%5BInternal%20swp2%20to%20Administration%20swp1%5D_202.png)
+
+The VLAN id is 300 as shown in the `bytes` window in wireshark. 
+
+Interestingly however if we listen between Internal switch and the MicroTik router we can see that broadcast traffic escapes the VLANs as shown with wireshark capture below (during a ping from ITManager to the MicroTik router):
+
+![Capturing from Standard input [Gateway2 ether2 to Internal swp1]_203](INR-Lab-3-vlans-and-faults.assets/Capturing%20from%20Standard%20input%20%5BGateway2%20ether2%20to%20Internal%20swp1%5D_203.png)
+
+
+So we must fix the configuration for Internal switch as shown below:
+
+![Internal_204](INR-Lab-3-vlans-and-faults.assets/Internal_204.png)
