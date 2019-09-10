@@ -2,10 +2,6 @@
 
 #### Artem Abramov SNE19
 
-May I suggest viewing this document in your browser at address: 
-https://github.com/temach/innopolis_university_reports/blob/master/INR-Lab-3-vlans-and-faults.md
-Unfortunately rendering the document to PDF breaks some long lines and crops images.
-
 
 ## Task 1 - VLANs
 
@@ -335,7 +331,7 @@ We can clearly see that the selected request contains the 802.1Q information spe
 
 ### 1. What is Link Agregation ?
 
-A way to use multiple Ethernet adapters that connect the sending and the receiving side in order to achieve higher throughput speeds and/or redundancy (and hence safety).
+A way to use multiple Ethernet adapters that connect the sending and the receiving side in order to achieve higher throughput speeds and/or redundancy (and hence reliability).
 
 
 
@@ -455,7 +451,7 @@ For Administration switch:
 
 ### 6. Change the topology to have two paths as show below:
 
-Adding the new path requiers changing the configuration of all three switches in order to maintain VLANs.
+Adding the new path requires changing the configuration of all three switches in order to maintain VLANs.
 
 The new configuration for the ITDepartment switch (which was used as a dumb switch up until now) is shown below:
 
@@ -506,4 +502,43 @@ The network is congested and will lead to meaningful traffic getting delayed whi
 
 ### 8. Enable back STP on the Switches and do the experiment again.
 
-To enable the STP the configuration files on the switches must be changed to include `bridge-stp yes`.
+To enable the STP the configuration files on the switches must be changed to include `bridge-stp on`.
+
+The results of the capture are shown below:
+
+![Capturing from Standard input [Administration swp4 to ITDepartment swp3]_245](INR-Lab-3-vlans-and-faults.assets/Capturing%20from%20Standard%20input%20%5BAdministration%20swp4%20to%20ITDepartment%20swp3%5D_245.png)
+
+
+
+There are much fewer packets because the loop in the topology was eliminated.
+
+
+
+#### Can you see STP traffic ? Explain it breifly.
+
+Below is a screenshot showing wireshark interpreting a STP packet:
+
+![-Standard input [Internal swp2 to Administration swp1]_246](INR-Lab-3-vlans-and-faults.assets/-Standard%20input%20%5BInternal%20swp2%20to%20Administration%20swp1%5D_246.png)
+
+ According to Wireshark capture the STP makes up for about 16% of all packets. The total number of packets is much less after a minute and does not show exponential growth.
+
+
+
+### Configure the switches to have the Internal as the Root switch.
+
+We want to configure the Internal switch to be the Root Bridge. The bridge configuration policy can be given as an option `mstpctl-treeprio` to the bridge in `/etc/network/interfaces/`.  In this case its very simple to set the root bridge, the configuration file for Internal is shown below:
+
+![Internal_247](INR-Lab-3-vlans-and-faults.assets/Internal_247.png)
+
+
+sources:
+
+1.  `Interconnections: Bridges, Routers, Switches, and Internetworking Protocols` by Radia Perlman -Addison-Wesley Professional (1999)
+
+
+
+
+
+### 9. Would we need STP between routers ?
+
+No, we dont need the STP protocol, because routers do not suffer from the same problem as bridges. In particular routers work at a higher level and can inspect the hop count for a packet and when the hop count reaches zero the packet is dropped (so the packets will not loop forever). Secondly the bridges duplicate packets, whereas routers put them on another LAN, so the number of packets would not grow exponentially.
