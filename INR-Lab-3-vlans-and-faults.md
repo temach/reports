@@ -388,9 +388,11 @@ The resulting configuration for Web is shown below:
 
 
 
-IBelow is the output if `ip a` for the Web machine:
+Below is the output if `ip a` for the Web machine:
 
 ![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(Web)%20-%20TigerVNC_223.png) - TigerVNC_223](../../../Pictures/QEMU%20(Web)%20-%20TigerVNC_223.png)
+
+To reconfigure the network sun `systemctl restart networking.service` just using `ifup bond0` is not enough.
 
 sources: 
 
@@ -406,4 +408,32 @@ Configuration on the Gateway is shown below (inside Interfaces->Bonding):
 Then we must delete ip configuration for the ether1 and configure the ip address for bonding1 interface. The final configuration is shown on the screenshot below:
 
 ![admin@192.168.122.189 (INR-Lab-3-vlans-and-faults.assets/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_226.png) - WinBox v6.44.2 on CHR (x86_64)_226](../../../Pictures/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_226.png)
+
+
+
+Checking connection (pings from Web to Gateway and Admin) is shown below:
+
+![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(Web)%20-%20TigerVNC_231.png) - TigerVNC_231](../../../Pictures/QEMU%20(Web)%20-%20TigerVNC_231.png)
+
+
+
+### 3. Test the Fault Tolerance by stopping one of the cables and see if you have any down time.
+
+I drop a cable from Web `e0` interface to External `swp5` interface to get the topology as below:
+
+![lab-2-ipv4-and-ipv6 - GNS3_232](INR-Lab-3-vlans-and-faults.assets/lab-2-ipv4-and-ipv6%20-%20GNS3_232.png)
+
+
+
+This was done while ping was running:
+
+![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(Web)%20-%20TigerVNC_233.png) - TigerVNC_233](../../../Pictures/QEMU%20(Web)%20-%20TigerVNC_233.png)
+
+
+
+We can see that after `ping sequence=11` the removal of the link affects the connection because ping packets get dropped. However the connection still works.
+
+
+
+### 5. Disable STP on the Switches under Internal .
 
