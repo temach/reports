@@ -431,9 +431,79 @@ This was done while ping was running:
 
 
 
-We can see that after `ping sequence=11` the removal of the link affects the connection because ping packets get dropped. However the connection still works.
+We can see that after `ping sequence=11` the removal of the link affects the connection because ping packets get dropped, I think this is a consequence of using the GNS3 emulator. I suspect that on real equipment with a small `bond-miimon` setting we would quickly detect that one of the slave interfaces is down and switch to using just the other slave.
 
 
 
 ### 5. Disable STP on the Switches under Internal .
 
+To disable the STP we add `bridge-stp off` to `/etc/network/interfaces` for each switch.
+
+For Internal switch:
+
+![Internal_234](INR-Lab-3-vlans-and-faults.assets/Internal_234.png)
+
+For ITDepartment switch:
+
+![ITDepartment_235](INR-Lab-3-vlans-and-faults.assets/ITDepartment_235.png)
+
+For Administration switch:
+
+![Administration_236](INR-Lab-3-vlans-and-faults.assets/Administration_236.png)
+
+
+
+### 6. Change the topology to have two paths as show below:
+
+Adding the new path requiers changing the configuration of all three switches in order to maintain VLANs.
+
+The new configuration for the ITDepartment switch (which was used as a dumb switch up until now) is shown below:
+
+![ITDepartment_237](INR-Lab-3-vlans-and-faults.assets/ITDepartment_237.png)
+
+
+
+The config for Internal switch is shown below:
+
+![Internal_238](INR-Lab-3-vlans-and-faults.assets/Internal_238.png)
+
+
+
+The config for Administration switch is shown below:
+
+![Administration_239](INR-Lab-3-vlans-and-faults.assets/Administration_239.png)
+
+
+
+The new topology is shown below:
+
+![lab-2-ipv4-and-ipv6 - GNS3_240](INR-Lab-3-vlans-and-faults.assets/lab-2-ipv4-and-ipv6%20-%20GNS3_240.png)
+
+
+
+
+
+### 7. Capture the traffic, send a broadcast ping request to the PCs connected to the Internal Network.
+
+#### What can you notice ?
+
+The network was flooded with packets. Alltogether I collected about 900 000 (nine hundred thousand) packets after about a minute. The number of packets grew in progression over time.
+
+This is shown in the screenshot below:
+
+![-Standard input [Administration swp4 to ITDepartment swp3]_241](INR-Lab-3-vlans-and-faults.assets/-Standard%20input%20%5BAdministration%20swp4%20to%20ITDepartment%20swp3%5D_241.png)
+
+
+#### Why did this happen ?
+
+When broadcast ping signal goes out the closes switch receives the packet, notes what LAN it came from, ques it for forwarding onto the neighbour LAN. When the other two bridges get the packet they do the same thing. However because the first bridge is transparent to them they assume that the packet came from an end machine, so they will que it to go back to the original LAN. Thus not only do the packets loop, but they also multiply. (this is unlike routers that do not duplicate packets, furthermore routers interpret the hop count on the packet, so a looping packet will eventually be dropped). And because bridges are transparent the packet on its 10th transmission looks the same as on its first transmission.
+
+The solution is to avoid loops in network topology. The spanning tree algorithm allows bridges to detect and ignore loops.
+
+#### What are the implications of this on the network ?
+
+The network is congested and will lead to meaningful traffic getting delayed while all the communication channels are busy transmitting. 
+
+### 8. Enable back STP on the Switches and do the experiment again.
+
+To enable the STP the configuration files on the switches must be changed to include `bridge-stp yes`.
