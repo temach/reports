@@ -351,6 +351,8 @@ $ sudo unbound -d -vvv
 [1567719043] unbound[3018:0] debug: switching log to syslog
 ```
 
+Enabling the logging file is shown in the section below.
+
 ### Show the changes you made to your configuration to allow remote control.
 
 Enabling log file and unbound-control in unbound.conf, the resulting config is shown below:
@@ -852,14 +854,146 @@ $ dig 42.155.130.188.in-addr.arpa @127.0.0.1
 
 ## Task 2 - Delegating Your Own Zone
 
-### How did you set up the subdomains and their delegation?
+### How did you set up the subdomains and their delegation? 
+
+Rustam already had a delegated domain and I was curious to do this step without adding glue records to my zone config (i.e. the parent zone config). Therefore we choose to delegate the authority over the `rustam.std9.os3.su` zone to the `ns1.std11.os3.su` nameserver that is controlled by Rustam.
+
+### How did you set up the subdomains in your zone file?
+
+Created a subdomain for my teammate Rustam by adding the following one record to my zone file `/usr/local/etc/nsd/std9.os3.su.zone` (note that I did not add a glue record):
+
+```
+; Delegate zone to Rustam
+rustam.std9.os3.su.     IN      NS      ns1.std11.os3.su.
+```
+
+Then make NSD reload the zone configuration file. Do this with the following command (note that you must specify the name of the zone, not the path to the zonefile):
+```
+$ sudo nsd-control reload std9.os3.su 
+```
 
 
+The next steps were done on Rustam's computer.
+
+Then at Rustam's side we created a zone file `rustam.std9.os3.su.zone`. This zone file will contain the authoritative information regarding the zone. Its contents at the time of creation are shown below:
+```
+$TTL 3600
+@		IN  	SOA   	rustam.std9.os3.su. r\.vaidulloev.innopolis.university. (
+							2019090800
+							10800
+							3600
+							604800
+							38400 )
+
+@		IN 	NS	ns1.std11.os3.su.
+
+labs		IN  	A       188.130.155.44
+
+; Use ns1.std11.os3.su. but this points to same IP
+ns			IN  	A       188.130.155.44
+
+```
+
+Interesting notes: 
+1. there is not need to specify `$ORIGIN` to use `@`.
+2. use `@` for the first field in SOA record, and that instead of specifying the address of the master nameserver you just specify the actual name of the zone. 
+3. specify the nameservers later in the file and you indicate the master nameserver with an `@`.  Which way makes much more sense over specifying the master nameserver in the SOA record.
 
 
+### What named.conf/nsd.conf options did you add or change?
 
+Then (still at Rustam's computer) we modified the NSD config file `nsd.conf` to include information on the new zone:
+```
+zone:
+	name: "rustam.std9.os3.su"
+	zonefile: "rustam.std9.os3.su.zone"
+```
 
+After modifying the `nsd.conf` reload the configuration with:
+```
+$ sudo nsd-control reconfig
+```
 
+Then just to make sure that the zone file was read correctly execute:
+```
+$ sudo nsd-control reload rustam.std9.os3.su
+```
+
+In case of errors, check the logfile.
+
+### Show the results of the tests that you performed.
+
+Pinging:
+```
+$ ping labs.rustam.std9.os3.su
+PING labs.rustam.std9.os3.su (188.130.155.44) 56(84) bytes of data.
+64 bytes from std11.os3.su (188.130.155.44): icmp_seq=1 ttl=64 time=0.353 ms
+64 bytes from std11.os3.su (188.130.155.44): icmp_seq=2 ttl=64 time=0.331 ms
+^C
+--- labs.rustam.std9.os3.su ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+rtt min/avg/max/mdev = 0.331/0.342/0.353/0.011 ms
+```
+
+Dig for nameserver record with +trace option:
+```
+$ dig ns rustam.std9.os3.su +trace
+
+; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> ns rustam.std9.os3.su +trace
+;; global options: +cmd
+.			254995	IN	NS	j.root-servers.net.
+.			254995	IN	NS	d.root-servers.net.
+.			254995	IN	NS	h.root-servers.net.
+.			254995	IN	NS	e.root-servers.net.
+.			254995	IN	NS	l.root-servers.net.
+.			254995	IN	NS	m.root-servers.net.
+.			254995	IN	NS	b.root-servers.net.
+.			254995	IN	NS	a.root-servers.net.
+.			254995	IN	NS	f.root-servers.net.
+.			254995	IN	NS	c.root-servers.net.
+.			254995	IN	NS	g.root-servers.net.
+.			254995	IN	NS	k.root-servers.net.
+.			254995	IN	NS	i.root-servers.net.
+.			254995	IN	RRSIG	NS 8 0 518400 20190923200000 20190910190000 59944 . Blee6Z4HM9qqGSuKXC3ye9gnUnSK1rrx1Kho5goOf9Unq0BPDe+WSO7h vjko3CaIYzwstw7q/5fvYmxIBJ0eFeUKir9BDOnTbw1Gh249aUfrf2u1 YDr7x6ZAr+XUi61RuhFrEAKyy1mfBusBc0b8vxpLGGyjFMD/YH3kCPs/ R8H1ZcDv03xMBSIh7aOamsl7Ee4sR47qtFtjuM6IAN/LAcRV3xO60UDE U8+eLPRyWGqJ4PCYVrreK5gj5c8svqpELaecyZ0FsmBWlsHJGaZfijz7 R+sbensA+vig2rWJLPWuLUltM+hVaHaq5SdOcYOxguWJ9mfPJjB5RIFH EEi1Lw==
+;; Received 525 bytes from 8.8.8.8#53(8.8.8.8) in 30 ms
+
+su.			172800	IN	NS	b.dns.ripn.net.
+su.			172800	IN	NS	a.dns.ripn.net.
+su.			172800	IN	NS	d.dns.ripn.net.
+su.			172800	IN	NS	e.dns.ripn.net.
+su.			172800	IN	NS	f.dns.ripn.net.
+su.			86400	IN	DS	57857 8 2 0754F6F81EDABC9B710C837BCD2B8CE61FA2B44E9EEFEA71FC2A0E6D 6F16B43D
+su.			86400	IN	RRSIG	DS 8 1 86400 20190923200000 20190910190000 59944 . XUuf0jrEMsJDHsTeP6D1z2boewrODNGbrT/TwFYYzaQ+zatDJFfYrZqF z3gCZI3oMmDS+FV4RYiP1OB5EyEzRE7b4BxwITgVw83L9lCf8Mdxkk1m azDNAG/YiBE/zzKsOf4Rdub0c9QUlSOcSD2BwySm5XF57LPIQc9KXtQA j1Z8qT10bLv1uWSdfSt2i2jRLmiArRcjBFg5893cOCwVEaBVCD6+DO2V LH0J+Zuj1fovcLcC+5q9dZNA9HJhb7xlSyFBbumNFO1DFAbcyjXdn2VC CRvfJzV270HBe3eXazKB3US5HGJ3ZYgLVE7sC6nroLWMS5GXvkmyzkMd YdFMdg==
+;; Received 722 bytes from 192.5.5.241#53(f.root-servers.net) in 16 ms
+
+os3.su.			345600	IN	NS	ns.os3.su.
+os3.su.			345600	IN	NS	ns2.os3.su.
+os3.su.			345600	IN	DS	4589 13 2 7FD3C17B4A39C3BAFF936B97E3A9FF8B0C049B7AB24EC174973EEDDB 4A6B5A5E
+os3.su.			345600	IN	RRSIG	DS 8 2 345600 20191002004353 20190819075517 64290 su. X2fkd0nx6lYewrH5+w4ylCDVT9xF9ABTTGw+OAa9Vmre8pcqhdjV3Oa1 ndzyr8KTPhKhFSaqRZAk0xO6uyJgJkyEpNaY1f3IW1pjwWhkIDwXI4z6 05J4u2ZXzXVZED2a7iDm07025/S59hoXe+THhfHzLbtbw8pnx6QSoWzY d0o=
+;; Received 324 bytes from 194.85.252.62#53(b.dns.ripn.net) in 27 ms
+
+std9.os3.su.		1800	IN	NS	ns0.std9.os3.su.
+vhoprsa85acuv5g302o4kei1navqfkfc.os3.su. 1800 IN NSEC3 1 0 10 40782352E455437A 04CQD2BLJQU8O4IGVB1K8PASKD71FNVM  NS
+vhoprsa85acuv5g302o4kei1navqfkfc.os3.su. 1800 IN RRSIG NSEC3 13 3 1800 20191008101911 20190910101911 58232 os3.su. AC9dJWhM3BFwGUyQ7dpL4A9ctM9JOCaJgAzkXGf4QGX29MChNOWFs9iq +K2oMH05tCRpFPNfGR1RMeAus9dt3A==
+;; Received 265 bytes from 62.210.16.8#53(ns2.os3.su) in 68 ms
+
+rustam.std9.os3.su.	3600	IN	NS	ns1.std11.os3.su.
+;; Received 71 bytes from 188.130.155.42#53(ns0.std9.os3.su) in 0 ms
+
+rustam.std9.os3.su.	3600	IN	NS	ns1.std11.os3.su.
+;; Received 71 bytes from 188.130.155.44#53(ns1.std11.os3.su) in 0 ms
+```
+
+Nslookup could only get Non-authoritative answer.
+```
+$ nslookup ns.rustam.std9.os3.su
+Server:		8.8.8.8
+Address:	8.8.8.8#53
+
+Non-authoritative answer:
+Name:	ns.rustam.std9.os3.su
+Address: 188.130.155.44
+```
 
 
 
