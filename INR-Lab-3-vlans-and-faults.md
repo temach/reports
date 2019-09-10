@@ -58,7 +58,8 @@ The adjusted network topology is shown below:
 
 Each switch was configured using the same steps. The process for one switch is shown below.
 
-The first step was changing the login password to somthing simpler.
+The first step was changing the login password to something simpler.
+
 There was a problem with creating a new single-letter password `a`, because of the default pam_unix configuration that does a password complexity check. Below is a screenshot showing the resulting configuration for pam_unix module in `/etc/pam.d/common-password` that allows one letter passwords (the old line is commented out):
 
 ![Administration_184](INR-Lab-3-vlans-and-faults.assets/Administration_184.png)
@@ -67,7 +68,7 @@ There was a problem with creating a new single-letter password `a`, because of t
 
 (source: https://askubuntu.com/questions/113682/how-to-change-disable-password-complexity-test-when-changing-password)
 
-The next step was configuring the swpX interfaces. The interfaces need to be brought up (created), then they need to be added to a bridge. This is just normal setup for making a linux machine act as a switch.
+The next step was configuring the swpX interfaces. The interfaces need to be brought up (created), then they need to be added to a bridge.
 
 The config for `/etc/network/interfaces` is shown below:
 ```
@@ -169,7 +170,7 @@ Lets further limit the discussion to wired networks (copper wire) there are two 
 1. Ethernet II (derived from Ethernet invented at Xerox parc)
 2. Ethernet 802.3 (Ethernet II that was standardised with some changes by the IEEE 802.3 comittee)
 
-The Ethernet frames are tagged with a VLAN tag. It is a 2 byte value 3 bits for VLAN priority, 12 bits for VLAN ID and 1 bit for indicating whether the VLAN ID is in a canonical format. The Ethernet frame must also define the presence of a VLAN tag by setting the packet type field (TPID) to 0x8100 (2-bytes).
+The Ethernet frames are tagged with a VLAN tag. It is a 2 byte value 3 bits for VLAN priority, 12 bits for VLAN ID and 1 bit for indicating whether the VLAN ID is in a canonical format. The Ethernet frame must also define the presence of a VLAN tag by setting the packet type field (TPID) to 0x8100 (2-bytes). 
 
 Ethernet II packet without a VLAN tag is shown below:
 
@@ -191,11 +192,14 @@ Ethernet 802.3 packet after being tagged with VLAN tag is shown below:
 
 ![Selection_197](INR-Lab-3-vlans-and-faults.assets/Selection_197.png)
 
+How VLAN is tagged is described by the 802.1Q standard.
+
 sources:
 1. `Interconnections: Bridges, Routers, Switches, and Internetworking Protocols`  Addison-Wesley Professional (1999) by Radia Perlman
-2. https://study-ccna.com/layer-2-switching/
-3. https://networkengineering.stackexchange.com/questions/5300/what-is-the-difference-between-ethernet-ii-and-802-3-ethernet
-4. https://community.cisco.com/t5/switching/ethernet-802-3-vs-ethernet-ii-frame/td-p/2718996
+2. http://www.ieee802.org/1/pages/802.1Q.html
+3. https://study-ccna.com/layer-2-switching/
+4. https://networkengineering.stackexchange.com/questions/5300/what-is-the-difference-between-ethernet-ii-and-802-3-ethernet
+5. https://community.cisco.com/t5/switching/ethernet-802-3-vs-ethernet-ii-frame/td-p/2718996
 
 ### What do we mean by Native VLAN ?
 
@@ -207,7 +211,7 @@ Native vlan on a trunk port is the default vlan to which any untagged traffic on
 
 Thus trunk ports can connect endpoints that support VLAN tagging. Whereas access ports can be used to connect a single VLAN to dumb switches/routers/clients that don't support VLAN tagging (or that should not be aware of it by network design).
 
-To rephrase access port is used to get traffic into the VLAN network by tagging it, inside the network traffic navigates between trunk ports that understand VLAN tags, and the traffic leaves the system through another access port without any VLAN tag. This way VLAN is transparent to end clients. 
+To rephrase access port is used to get traffic into the VLAN network by tagging it (traffic without a tag is understood to be in VLAN `1`), inside the network traffic navigates between trunk ports that understand VLAN tags, and the traffic leaves the system through another access port without any VLAN tag. This way VLAN is transparent to end clients. 
 
 sources:
 1. https://serverfault.com/questions/385963/access-ports-versus-trunk-ports
@@ -217,44 +221,108 @@ sources:
 
 ### 5. Configure the VLANs on the switches to isolate the two virtual networks as shown on the diagram.
 
-The configuration for Administration switch sets up access ports on swp2 and swp3. The swp2 tags/untags the packets with id 200, the swp3 tags/untags packets with id 300.  The configuration is shown below:
+The first step is creating separate networks for each VLAN.  The new networks are as follows (I will ignore IPv6 for now):
+1. 10.0.5.0/24 - Blue LAN (with VLAN ID = 2) and a single machine (HR = 10.0.5.2)
+2. 10.0.6.0/24 - Green LAN (with VLAN ID = 3) and two machines (Management = 10.0.6.2) and (ITManager = 10.0.6.3)
 
-![Administration_201](INR-Lab-3-vlans-and-faults.assets/Administration_201.png)
+Then I went to each machine on the Blue/Green LAN and configured the IP addresses respectively.
 
-The ITDepartment switch only needs to have the bridge become vlan aware and setup the access port on swp2 configured for vlan with id 300. The configuration is shown below:
+The resulting topology is shown below:
 
-![ITDepartment_200](INR-Lab-3-vlans-and-faults.assets/ITDepartment_200.png)
+![lab-2-ipv4-and-ipv6 - GNS3_217](INR-Lab-3-vlans-and-faults.assets/lab-2-ipv4-and-ipv6%20-%20GNS3_217.png)
 
-The configuration for the Internal switch does not need any special settings appart from becoming vlan aware. The configuration for Internal switch is shown below:
 
-![Internal_198](INR-Lab-3-vlans-and-faults.assets/Internal_198.png)
+
+The minimal amount of configuration needed for this to work is setting up the Internal switch and the Administration switch. For now we can avoid re-configuring the ITDepartment switch because it is transparently linked to a single client.
+
+The configuration for Administration switch is as follows:
+1. Access port on swp2 for Blue LAN with VLAN ID = 2
+2. Access port on swp3 for Green LAN with VLAN ID = 3
+3. Trunk port on swp1 with VLAN ID = 3, because packets from Blue LAN should be contained.
+
+The configuration is shown below:
+
+![Administration_209](INR-Lab-3-vlans-and-faults.assets/Administration_209.png)
+
+
+The configuration for Internal switch is as follows:
+
+1. Access port on swp3 for Green LAN with VLAN ID = 3
+3. Trunk port on swp2 with VLAN ID = 3
+
+The configuration is shown below:
+
+![Internal_210](INR-Lab-3-vlans-and-faults.assets/Internal_210.png)
+
+To reload the network configuration of each machine use: `sudo ifreload -a`.
+To get details on the syntax for `bridge-*` stanzas use `ifquery --syntax-help`.
+
+(source: https://img-en.fs.com/file/user_manual/cumulus-linux-user-guide.pdf)
 
 ### 6. Ping between ITManager and HR , do you have replies ? Ping between ITManager and Management , do you have replies ?
 
 Check that HR can not ping anyone as shown below:
 
-![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(HR)%20-%20TigerVNC_199.png) - TigerVNC_199](../../../Pictures/QEMU%20(HR)%20-%20TigerVNC_199.png)
-
+![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(HR)%20-%20TigerVNC_211.png) - TigerVNC_211](../../../Pictures/QEMU%20(HR)%20-%20TigerVNC_211.png)
 
 Check that ITManager can ping Management:
 
-![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(ITManager)%20-%20TigerVNC_205.png) - TigerVNC_205](../../../Pictures/QEMU%20(ITManager)%20-%20TigerVNC_205.png)
-
+![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(ITManager)%20-%20TigerVNC_212.png) - TigerVNC_212](../../../Pictures/QEMU%20(ITManager)%20-%20TigerVNC_212.png)
 
 
 ### Capture the traffic of the last ping and show in the packet the VLANs indication.
 
 We can check how the packet is structured and confirm that ping works with Wireshark listening between Internal switch and Administration switch as shown below:
 
-![Capturing from Standard input [Internal swp2 to Administration swp1]_202](INR-Lab-3-vlans-and-faults.assets/Capturing%20from%20Standard%20input%20%5BInternal%20swp2%20to%20Administration%20swp1%5D_202.png)
-
-The VLAN id is 300 as shown in the `bytes` window in wireshark. 
-
-Interestingly however if we listen between Internal switch and the MicroTik router we can see that broadcast traffic escapes the VLANs as shown with wireshark capture below (during a ping from ITManager to the MicroTik router):
-
-![Capturing from Standard input [Gateway2 ether2 to Internal swp1]_203](INR-Lab-3-vlans-and-faults.assets/Capturing%20from%20Standard%20input%20%5BGateway2%20ether2%20to%20Internal%20swp1%5D_203.png)
+![Capturing from Standard input [Internal swp2 to Administration swp1]_213](INR-Lab-3-vlans-and-faults.assets/Capturing%20from%20Standard%20input%20%5BInternal%20swp2%20to%20Administration%20swp1%5D_213.png)
 
 
-So we must fix the configuration for Internal switch as shown below:
 
-![Internal_204](INR-Lab-3-vlans-and-faults.assets/Internal_204.png)
+The VLAN id is `3` as shown in the `bytes` window in wireshark. The two bytes just before the ID are the Ethernet II type field filled in this case with the number `0x8100`.
+
+### 7. Configure Inter-VLAN Routing between Management VLAN and HR VLAN .
+
+To allow traffic to travel between different VLANs we must use a router that understands Layer 3. The only router in our setup is the MicroTik Gateway. In order to use the router, we must make sure that it is reachable from both the Blue and the Green VLANs. Currently it is not reachable from either of them, because of the strict rules imposed by the switches, so the first step is relaxing the rules a bit.
+
+Below is the updated config for the Administration switch:
+
+![Administration_215](INR-Lab-3-vlans-and-faults.assets/Administration_215.png)
+
+
+
+Below is the updated config for the Internal switch:
+
+![Internal_216](INR-Lab-3-vlans-and-faults.assets/Internal_216.png)
+
+
+
+Then we need to configure the router by adding two new VLAN interfaces onto `ether2` connection. This is done in `Interfaces` menu. Screenshot of the configuration for the blue VLAN is shown below:
+
+![admin@192.168.122.189 (INR-Lab-3-vlans-and-faults.assets/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_214.png) - WinBox v6.44.2 on CHR (x86_64)_214](../../../Pictures/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_214.png)
+
+
+Screenshot showing the addresses assigned to their respective interfaces. There are two networks assigned one to blueVLAN interface and one to greenVLAN interface as shown below: 
+
+![admin@192.168.122.189 (INR-Lab-3-vlans-and-faults.assets/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_218.png) - WinBox v6.44.2 on CHR (x86_64)_218](../../../Pictures/admin@192.168.122.189%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_218.png)
+
+### 8. Show that you can now ping between them.
+
+Screenshot below shows ip address of ITManager and ping to the other two machines:
+
+![QEMU (INR-Lab-3-vlans-and-faults.assets/QEMU%20(ITManager)%20-%20TigerVNC_219.png) - TigerVNC_219](../../../Pictures/QEMU%20(ITManager)%20-%20TigerVNC_219.png)
+
+
+The output of traceroute from ITManager to HR is shown below:
+
+![Selection_220](INR-Lab-3-vlans-and-faults.assets/Selection_220.png)
+
+
+### 9. Capture the traffic going to and out of the router and show the different traffic of the sub-interfaces.
+
+Start a wireshark capture between the MikroTik Gateway and Internal switch. The result is shown below:
+
+![-Standard input [Gateway2 ether2 to Internal swp1]_221](INR-Lab-3-vlans-and-faults.assets/-Standard%20input%20%5BGateway2%20ether2%20to%20Internal%20swp1%5D_221.png)
+
+
+
+We can clearly see that the selected request contains the 802.1Q information specifying in particular the Virtual LAN ID to be = 3. We can also see CDP (Cisco Discovery Protocol) and MNDP (MikroTik Neighbour Discovery Protocol) that are being broadcast on all three possible interfaces: ether2, blueVLAN and greenVLAN. The traffic that is going to the blueVLAN is shown by wireshark as having a `Port ID: blueVLAN` in its short description. The situation is exactly the same for the greenVLAN and just normal LAN traffic.
