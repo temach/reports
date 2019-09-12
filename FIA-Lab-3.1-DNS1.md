@@ -2,13 +2,11 @@
 
 #### Artem Abramov SNE19
 
-May I suggest viewing this document in your browser at address: 
-https://github.com/temach/innopolis_university_reports/blob/master/FIA-Lab-3.1-DNS1.md
-Unfortunately rendering the document to PDF breaks some long lines and crops images.
+
 
 ## Task 1 - Downloading and Installing a Caching Nameserver
 
-I have an odd table number and so working with Unbound+NDS.
+I have an odd number and so will be working with Unbound+NSD.
 
 ### 1.1 - Validating the Download
 
@@ -628,7 +626,7 @@ std9.os3.su. IN NS ns0.std9.os3.su.
 ns0.std9.os3.su. IN A 188.130.155.42
 ```
 
-We can see that the domain does not resolve currently:
+We can see that the domain does NOT resolve currently:
 ```
 $ dig ns std9.os3.su +trace +nodnssec
 
@@ -664,7 +662,7 @@ os3.su.			1800	IN	SOA	os3.su. p\.braun.innopolis.ru. 1566480002 3600 900 1209600
 ;; Received 96 bytes from 62.210.16.8#53(ns2.os3.su) in 66 ms
 ```
 
-And we just do the query for the A record:
+And we just do an unsuccessful query for the A record:
 ```
 $ dig std9.os3.su +trace +nodnssec
 
@@ -765,13 +763,13 @@ sources:
 
 ### Set up your own reverse zone for your IPv4 subnet.
 
-My ip address is `188.130.155.42`. The reverse DNS would look like `42.155.130.188.in-addr.arpa` and since `188.130.X.X` is a class B network, there is probably a DNS server for zone `130.188.in-addr.arpa` that is hosted by the ISP.  To enable reverse DNS for my server, I need to contact the ISP and request them to edit the  `130.188.in-addr.arpa` zone by adding the record below:
+My ip address is `188.130.155.42`. The reverse DNS would look like `42.155.130.188.in-addr.arpa` and since `188.130.X.X` is a class B network, there is probably a DNS server for zone `130.188.in-addr.arpa` that is hosted by the ISP.  To enable reverse DNS for my server, I need to contact the ISP (someone who actually bought the block of IP addresses) and request them to edit the  `130.188.in-addr.arpa` zone by adding the record below:
 
 ```
 42.155.130.188.IN-ADDR.ARPA.      	PTR 	std9.os3.su.
 ```
 
-Unfortunatelly this can only be done if I contact the innopolis university IT department and get them to contact the ISP. So instead I will setup the local server to serve the `130.188.in-addr.arpa` zone and imitate the validation of PTR record by directing all DNS requests through this local server.
+Unfortunately this can only be done if I contact the Innopolis university IT department and get them to contact the ISP. So instead I will setup the local server to serve the `130.188.in-addr.arpa` zone and imitate the validation of PTR record by directing all DNS requests through this local server.
 
 Below is the config for `130.188.in-addr.arpa` zone:
 ```
@@ -1152,13 +1150,13 @@ This means that whenever the serial number of my zone gets updated my server wil
 
 ### What happens if the primary nameserver for the subdomain fails?
 
-The slave server is meant to be used as a backup server (when the primary dies) and/or to speed up DNS resolution (because it can be in another geographical location, that is closer to the client). Normally the server that delgated the domain will have multiple NS records for one domain. One of them will be marked as the primary. If that server becomes unreachable the client will simply query the next server in the RRset. 
+The slave server is meant to be used as a backup server (when the primary dies) and/or to speed up DNS resolution (because it can be in another geographical location, that is closer to the client). Normally the server that delegated the domain will have multiple NS records for one domain. One of them will be marked as the primary. If that server becomes unreachable the client will simply query the next server in the RRset. 
 
 However the master/slave configuration is not tied to what is in the zone file. It is possible to configure the zonefile to point only to slave nameservers and have one hidden master to rule their configuration. If this server becomes unreachable then the slaves will continue to serve the last version of the records that they received from the master, the client will not even notice the difference.
 
 ### Considering that the slave nameserver is also the delegating nameserver, explain why this is essentially a bad setup?
 
-If we setup the delegation server as the slave server for the `ali.std9.os3.su` zone (for example), then  when the delegation server receives a query for content in `ali.std9.os3.su` zone  (i.e. the zone that was delegated) it can attempt to answer it directly becasue it is also a slave server (it has some version of the zonefile that was transferred to it). This means that the query instead of actually being delegated to the master server in `ali.std9.os3.su` zone, will be always answered by the slave server.
+If we setup the delegation server as the slave server for the `ali.std9.os3.su` zone (for example), then  when the delegation server receives a query for content in `ali.std9.os3.su` zone  (i.e. the zone that was delegated) it can attempt to answer it directly because it is also a slave server (it has some version of the zonefile that was transferred to it). This means that the query instead of actually being delegated to the master server in `ali.std9.os3.su` zone, will be always answered by the slave server.
 
 
 ## Task 4 - Zone Transfers
