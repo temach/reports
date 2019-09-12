@@ -1228,25 +1228,11 @@ zone:
 
 Now NSD will block notifications from Rustam's sever. And NSD is allowed to supply information to other programs running on localhost (with ip `127.0.0.1`) and on my Internet facing interface (with ip `188.130.155.42`).
 
-Then to initiate the zone transfer we must execute:
-```
-$ sudo dig @ns0.std9.os3.su axfr rustam.std9.os3.su
+Then to initiate the zone transfer we must execute (because this is not the first time running the command, the results were already present on the slave server, therefore it has `Query time: 0 msec` ):
 
-; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> @ns0.std9.os3.su axfr rustam.std9.os3.su
-; (1 server found)
-;; global options: +cmd
-rustam.std9.os3.su.	3600	IN	SOA	rustam.std9.os3.su. r\.vaidulloev.innopolis.university. 20190910 10800 3600 604800 38400
-rustam.std9.os3.su.	3600	IN	NS	ns1.std11.os3.su.
-labs.rustam.std9.os3.su. 3600	IN	A	188.130.155.44
-ns.rustam.std9.os3.su.	3600	IN	A	188.130.155.44
-rustam.std9.os3.su.	3600	IN	SOA	rustam.std9.os3.su. r\.vaidulloev.innopolis.university. 20190910 10800 3600 604800 38400
-;; Query time: 0 msec
-;; SERVER: 188.130.155.42#53(188.130.155.42)
-;; WHEN: Thu Sep 12 14:15:14 MSK 2019
-;; XFR size: 5 records (messages 1, bytes 216)
-```
+![artem@artem-209-HP-EliteDesk-800-G1-SFF: -usr-local-etc-nsd_251](FIA-Lab-3.1-DNS1.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20-usr-local-etc-nsd_251.png)
 
-The command means: initiate zone transfer using `axfr` from server `rustam.std9.os3.su` on behalf of `ns0.std9.os3.su`. (or in other words going to the NSD server that is running on my machine).
+The command means: initiate zone transfer using `axfr` (instead of `ixfr`) from server `rustam.std9.os3.su` on behalf of `ns0.std9.os3.su`. (or in other words going to the NSD server that is running on my machine).
 
 And I could see the following in the NSD log file:
 
@@ -1261,7 +1247,7 @@ And I could see the following in the NSD log file:
 [2019-09-12 14:35:01.501] nsd[7397]: info: axfr for rustam.std9.os3.su. from 188.130.155.42
 ```
 
-The last two lines indicate successful zone transfer.
+The last two lines indicate 2 successful zone transfers.
 
 
 
@@ -1276,13 +1262,17 @@ source:
 
 ### Describe the steps in the transfer process.
 
+The slave server sends the SOA query for the zone and upon getting the answer sends either an IXFR or AXFR request, which hopefully gets an answer. The slave server will attempt zone transfer if the master notifies it that the zone has updated, or if the REFRESH interval listed in SOA record expires, or if the slave server just started and notices that it does not have any zone information. 
+
 
 
 ### What information did the slave server receive?
 
+The slave server received a copy of all the records that were in the master's zonefile. As can be seen from dig command output these records were:
 
-
-
+1. SOA record for `rustam.std9.os3.su`
+2. NS records
+3. A records for `labs.` and `ns.`
 
 
 
