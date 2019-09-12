@@ -853,11 +853,11 @@ $ dig 42.155.130.188.in-addr.arpa @127.0.0.1
 
 ## Task 2 - Delegating Your Own Zone
 
-### How did you set up the subdomains and their delegation (delegating a subzone)? 
+### How did you set up the subdomains and their delegation (delegating authority over a subzone)? 
 
 Ali already had a delegated domain and I was curious to do this step without adding glue records to my zone config (i.e. the parent zone config for Ali's zone). Therefore we choose to delegate the authority over the `ali.std8.os3.su` zone to the `ns.std8.os3.su` nameserver that is controlled by Ali.
 
-Created a subdomain for my teammate Ali by adding the following one record to my zone file `/usr/local/etc/nsd/std9.os3.su.zone` (note that I did not add a glue record):
+Created a subdomain for my teammate Ali by adding the following one record to my zone file `/usr/local/etc/nsd/std9.os3.su.zone` (note that I did not add a glue record, because we are using a nameserver that is on a different domain):
 
 ```
 ; Delegate zone to Ali
@@ -871,7 +871,7 @@ $ sudo nsd-control reload std9.os3.su
 
 ### What named.conf/nsd.conf options did you add or change?
 
-To delegate my zone to Ali I did not have to change `nsd.conf`.
+To delegate a zone to Ali I did not have to change `nsd.conf`.
 
 ### Show the results of the tests that you performed.
 
@@ -893,45 +893,47 @@ $ dig ns test.ali.std9.os3.su +trace
 
 ; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> ns test.ali.std9.os3.su +trace
 ;; global options: +cmd
-.			228374	IN	NS	j.root-servers.net.
-.			228374	IN	NS	c.root-servers.net.
-.			228374	IN	NS	e.root-servers.net.
-.			228374	IN	NS	m.root-servers.net.
-.			228374	IN	NS	i.root-servers.net.
-.			228374	IN	NS	a.root-servers.net.
-.			228374	IN	NS	b.root-servers.net.
-.			228374	IN	NS	d.root-servers.net.
-.			228374	IN	NS	k.root-servers.net.
-.			228374	IN	NS	f.root-servers.net.
-.			228374	IN	NS	l.root-servers.net.
-.			228374	IN	NS	g.root-servers.net.
-.			228374	IN	NS	h.root-servers.net.
-.			228374	IN	RRSIG	NS 8 0 518400 20190923050000 20190910040000 59944 . XVGgHVzSLndWvMbZkFuu2pydcv3FcfQYj94mK+IobQ7tLGko83/W1C3Z PrpPdNhhogCFHV8bc180VuBuXbngag5a1cIYTg5AM3K3tUI+5XAIum8d Nu3OOJI4j8oj0Z2LI/UVvnfjUkgG8KgfKMoMHGDJdvATT+Sw4GFg4plY urlHeDCYu85XDGMKzv1XbBJ31PnHdxMiW2A3DsXQquWS2fNIblpHap5q tFTLcSo2pSs503pxQ0PB+BOsMSllKHWpIGWaO1lFW/fLhkWck78cEcTF bQxWBQBIy0HXLOwr/jMBHh5wErdZ0dB+2bCnywCV4Kcy8Q1Oo+JH1kR2 drbrVg==
-;; Received 525 bytes from 8.8.8.8#53(8.8.8.8) in 30 ms
+.			132680	IN	NS	m.root-servers.net.
+.			132680	IN	NS	i.root-servers.net.
+.			132680	IN	NS	f.root-servers.net.
+.			132680	IN	NS	j.root-servers.net.
+.			132680	IN	NS	d.root-servers.net.
+.			132680	IN	NS	l.root-servers.net.
+.			132680	IN	NS	c.root-servers.net.
+.			132680	IN	NS	b.root-servers.net.
+.			132680	IN	NS	h.root-servers.net.
+.			132680	IN	NS	k.root-servers.net.
+.			132680	IN	NS	a.root-servers.net.
+.			132680	IN	NS	e.root-servers.net.
+.			132680	IN	NS	g.root-servers.net.
+.			132680	IN	RRSIG	NS 8 0 518400 20190923200000 20190910190000 59944 . Blee6Z4HM9qqGSuKXC3ye9gnUnSK1rrx1Kho5goOf9Unq0BPDe+WSO7h vjko3CaIYzwstw7q/5fvYmxIBJ0eFeUKir9BDOnTbw1Gh249aUfrf2u1 YDr7x6ZAr+XUi61RuhFrEAKyy1mfBusBc0b8vxpLGGyjFMD/YH3kCPs/ R8H1ZcDv03xMBSIh7aOamsl7Ee4sR47qtFtjuM6IAN/LAcRV3xO60UDE U8+eLPRyWGqJ4PCYVrreK5gj5c8svqpELaecyZ0FsmBWlsHJGaZfijz7 R+sbensA+vig2rWJLPWuLUltM+hVaHaq5SdOcYOxguWJ9mfPJjB5RIFH EEi1Lw==
+;; Received 525 bytes from 8.8.8.8#53(8.8.8.8) in 33 ms
 
-su.			172800	IN	NS	b.dns.ripn.net.
-su.			172800	IN	NS	f.dns.ripn.net.
-su.			172800	IN	NS	e.dns.ripn.net.
-su.			172800	IN	NS	d.dns.ripn.net.
 su.			172800	IN	NS	a.dns.ripn.net.
+su.			172800	IN	NS	b.dns.ripn.net.
+su.			172800	IN	NS	d.dns.ripn.net.
+su.			172800	IN	NS	e.dns.ripn.net.
+su.			172800	IN	NS	f.dns.ripn.net.
 su.			86400	IN	DS	57857 8 2 0754F6F81EDABC9B710C837BCD2B8CE61FA2B44E9EEFEA71FC2A0E6D 6F16B43D
-su.			86400	IN	RRSIG	DS 8 1 86400 20190924050000 20190911040000 59944 . E512781kSnJfZcv+n3TAIg/bpnVm3H0bjVmMAwZ6V19SYvbrUDbx6P5M vvx14XANDiPgkIuWZz+MkbFuVb7DHU1k5iyPrJsghCw/IB+MGKQZwL9r F8f2qwVesAzNC6DMEbcMdFB++iP10OSIohy2zLjQ9fuailrizI5biTkU AHGIFuvdWj8VHH/L24DJscPoUy7+Ww/6/3aJoOZvtNhikdQB+RV6fiUg hRlIqv0bWyAGey2i+69x9joc/Q19arG3sFuZ6Jp2c3sIRmSiY0mRkCYh oVhBXXpKh0vKVkZ2G+/DwmDYe20I7ARFeuzZvcWmnBg93B5LNtxGCEAB DdN/5g==
-;; Received 724 bytes from 192.112.36.4#53(g.root-servers.net) in 125 ms
+su.			86400	IN	RRSIG	DS 8 1 86400 20190925050000 20190912040000 59944 . JKGyWHINyHcu6nTxJSMz4mr6nIaFgw1f6L03n9IGjPR8azlLblGSqq1K d9BY2u/uYBJXEaZ/gSiESzgPbg8RHCcvbmlXhvx0aJwmokOyiQT8j0li M4UAMObmb+8DqGJvzexcHt50E3H/UzmuSNEQsE+J5btw10ARk6WlrFw6 17m2Jd9hsi94WDa3VTDQ4gFLPtX+FmbHYFo2W/SS8v/Pz3cSkqbd/yYW SsIIOQL3Cu+j9pACXYGHGNWJ6/HomTu+eAt0Gb+fxv9ltLV5qzxKjvab sIj+0HR7ZwNZvneoFqIyKeVfj6dXPKpDRRXjOovlgiELDwHLlM3H/d/k 4++7OA==
+;; Received 696 bytes from 198.97.190.53#53(h.root-servers.net) in 146 ms
+
+OS3.SU.			345600	IN	NS	ns.os3.SU.
+OS3.SU.			345600	IN	NS	ns2.os3.SU.
+os3.su.			345600	IN	DS	4589 13 2 7FD3C17B4A39C3BAFF936B97E3A9FF8B0C049B7AB24EC174973EEDDB 4A6B5A5E
+os3.su.			345600	IN	RRSIG	DS 8 2 345600 20191002004353 20190819075517 64290 su. X2fkd0nx6lYewrH5+w4ylCDVT9xF9ABTTGw+OAa9Vmre8pcqhdjV3Oa1 ndzyr8KTPhKhFSaqRZAk0xO6uyJgJkyEpNaY1f3IW1pjwWhkIDwXI4z6 05J4u2ZXzXVZED2a7iDm07025/S59hoXe+THhfHzLbtbw8pnx6QSoWzY d0o=
+;; Received 343 bytes from 194.190.124.17#53(d.dns.ripn.net) in 87 ms
+
+std9.os3.su.		1800	IN	NS	ns0.std9.os3.su.
+26ptlcuba1u73st4shb748d1ustlo93b.os3.su. 1800 IN NSEC3 1 0 10 06DE2AECD9091529 6GIHVA3BHGI7KS4IBLKKMGCT86C2G742  NS
+26ptlcuba1u73st4shb748d1ustlo93b.os3.su. 1800 IN RRSIG NSEC3 13 3 1800 20191009085844 20190911085844 58232 os3.su. 2EQvnqsrLiDdG1skp1RKKJ1ByRlxp46DSg2H52S0Yy4MenUKRwJoTNQF 7qIHYI4ntZOlpSX4QiN5bAh9BX9Q2w==
+;; Received 267 bytes from 62.210.16.8#53(ns2.os3.SU) in 73 ms
+
+ali.std9.os3.su.	86400	IN	SOA	ali.std9.os3.su. ali-akbar.live.com. 3 604800 86400 2419200 86400
+;; Received 103 bytes from 188.130.155.42#53(ns0.std9.os3.su) in 0 ms
 ```
 
-Nslookup could only get Non-authoritative answer.
-```
-$ nslookup ns2.std8.os3.su.
-Server:		8.8.8.8
-Address:	8.8.8.8#53
-
-Non-authoritative answer:
-Name:	ns2.std8.os3.su
-Address: 188.130.155.41
-```
-
-
-### How did you set up the subdomains in your zone file (receiving authority over a subzone?
+### How did you set up the subdomains in your zone file (receiving authority over a subzone)?
 
 I asked Ali to delegate authority over `artem.std8.os3.su` subdomain to `ns0.std9.os3.su` nameserver.
 
@@ -1112,11 +1114,11 @@ zone:
 zone:
 	name: "ali.std9.os3.su"
 	zonefile: "ali.std9.os3.su.slavezone"
-	allow-notify: 188.130.155.42 NOKEY
-	request-xfr: 188.130.155.42 NOKEY
+	allow-notify: 188.130.155.41 NOKEY
+	request-xfr: 188.130.155.41 NOKEY
 ```
 
-I gave Ali the ip address of my sever (`188.130.155.41`), so that he could setup his BIND9 server to send a notification to my server whenever the serial number in the SOA record for `ali.std9.os3.su` was updated.
+I gave Ali the ip address of my sever (`188.130.155.42`), so that he could setup his BIND9 server (his server is at ip address `188.130.155.41`) to send a notification to my server whenever the serial number in the SOA record for `ali.std9.os3.su` was updated.
 
 Below are logs of NSD on my machine after restarting the daemon, 
 ```
@@ -1132,9 +1134,20 @@ Below are logs of NSD on my machine after restarting the daemon,
 [2019-09-11 19:18:20.781] nsd[7071]: info: zone ali.std9.os3.su serial 0 is updated to 3
 ```
 
-We can see fomr the logs that the slave server queried the master and a successful transfer of zone data occurred. Now the slave (controlled by me) contains the same data as the master (controlled by Ali).
+We can see from the logs that the slave server queried the master and a successful transfer of zone data occurred. Now the slave (controlled by me, running on ip `188.130.155.42`) contains the same data as the master (controlled by Ali, running on ip `188.130.155.41`).
 
+**Note on the teamwork part of the task.**
 
+We were asked to setup a slave server in this task. Above I showed how I made my server the slave server. Then because we worked as a team Ali had to do the same task. This means he wanted to setup a slave server for the domain `artem.std8.os3.su`. To allow him to become the slave server I changed the already existing configuration for the `artem.std8.os3.su` zone, to the one shown below (in my `nsd.conf`):
+```
+zone:
+	name: "artem.std8.os3.su"
+	zonefile: "artem.std8.os3.su.zone"
+	notify: 188.130.155.41 NOKEY
+	provide-xfr: 188.130.155.41 NOKEY
+```
+
+This means that whenever the serial number of my zone gets updated my server will try to notify the server running on `188.130.155.41`. This also means that when the server at `188.130.155.41` will request a zone transfer, my server will grant it to him. 
 
 
 ### What happens if the primary nameserver for the subdomain fails?
@@ -1150,21 +1163,110 @@ If we setup the delegation server as the slave server for the `ali.std9.os3.su` 
 
 ## Task 4 - Zone Transfers
 
-###  Set up the master nameserver for your subdomain. Show the changes you had to make to your configuration.
+### Use a DNS tool (for instance dig) to initiate a zone transfer from your primary nameserver to your slave. Show the output of the DNS tool. Show the changes you had to make to your configuration.
 
-I am setting up my server as the master and Ali's server as the slave for the zone `artem.std8.os3.su` (the zone that Ali delegated to me).
+This step I performed with another teammate. I paired with Rustam.
 
-I added the following configuration to my NSD server as shown below:
+I am the admin for the zone `std9.os3.su` and I have delegated the `rustam.` subdomain to Rustam. I also have control over the slave server for the zone `rustam.std9.os3.su`.  The task is to initiate a transfer of the zone file from the master nameserver (controlled by Rustam) to the slave nameserver (controlled by me). 
+
+First step is dicovering the master nameserver for `rustam.std9.os3.su` with the command below:
+```
+$ dig +short ns rustam.std9.os3.su
+ns1.std11.os3.su.
+```
+
+The master nameserver for the zone `rustam.std9.os3.su` is at `ns1.std11.os3.su`. 
+
+In logfile we can see that when Rustam zone gets update his server notifies my server and a successfull zone transfer happens as shown below from the log:
+```
+[2019-09-12 13:36:05.153] nsd[6042]: notice: nsd started (NSD 4.2.2), pid 6041
+[2019-09-12 13:37:14.057] nsd[6046]: info: notify for rustam.std9.os3.su. from 188.130.155.44 serial 20190910
+[2019-09-12 13:37:14.058] nsd[6041]: error: xfrd: zone rustam.std9.os3.su received error code NOT IMPL from 188.130.155.44
+[2019-09-12 13:37:14.059] nsd[6041]: info: xfrd: zone rustam.std9.os3.su written received XFR packet from 188.130.155.44 with serial 20190910 to disk
+[2019-09-12 13:37:14.059] nsd[6041]: info: xfrd: zone rustam.std9.os3.su committed "received update to serial 20190910 at 2019-09-12T13:37:14 from 188.130.155.44"
+[2019-09-12 13:37:14.060] nsd[6042]: info: zone rustam.std9.os3.su. received update to serial 20190910 at 2019-09-12T13:37:14 from 188.130.155.44 of 205 bytes in 0.000148 seconds
+[2019-09-12 13:37:14.061] nsd[6041]: info: zone rustam.std9.os3.su serial 20190907 is updated to 20190910
+```
+
+However we want to do the transfer manually by using `dig`. Therefore the next step was to disable notification that gets send from Rustam's server to my server.  
+
+Another problem was that I was trying to initiate zone transfer using the command:
+
+```
+$ dig @ns0.std9.os3.su axfr rustam.std9.os3.su
+```
+
+And could see the following in the NSD log (on my NSD server at `ns0.std9.os3.su` and ip `188.130.155.42`):
+```
+[2019-09-12 14:04:40.746] nsd[6935]: notice: nsd starting (NSD 4.2.2)
+[2019-09-12 14:04:40.747] nsd[6935]: info: creating unix socket /var/tmp/nsd-control.pipe
+[2019-09-12 14:04:40.748] nsd[6937]: info: zonefile 130.188.in-addr.arpa.zone is not modified
+[2019-09-12 14:04:40.748] nsd[6937]: info: zonefile std9.os3.su.zone is not modified
+[2019-09-12 14:04:40.748] nsd[6937]: info: zonefile rustam.std9.os3.su.slavezone does not exist
+[2019-09-12 14:04:40.782] nsd[6937]: notice: nsd started (NSD 4.2.2), pid 6936
+[2019-09-12 14:06:05.279] nsd[6941]: info: axfr for rustam.std9.os3.su. from 188.130.155.42 refused, no acl matches
+[2019-09-12 14:08:00.869] nsd[6941]: info: axfr for rustam.std9.os3.su. from 188.130.155.42 refused, no acl matches
+[2019-09-12 14:13:14.196] nsd[6941]: info: axfr for rustam.std9.os3.su. from 188.130.155.42 refused, no acl matches
+```
+
+Note the last 3 lines: they indicate that the NSD server found no ACL matches, which is Access Control List. This means that the NSD server was not told to provide information to others regarding the slave zone `rustam.std9.os3.su` (that resides on this server).
+
+Using this information I changed the NSD configuration for my slave zone in `nsd.conf`:
+1. to ignore notifications from Rustams server, because I want to make the transfer by hand.
+2. to allow my NSD server to supply zone information to other programs on my computer.
+
+The resulting config is shown below:
 ```
 zone:
-        name: "artem.std8.os3.su"
-        zonefile: "artem.std8.os3.su.zone"
-        notify: 188.130.155.42 NOKEY
+        name: "rustam.std9.os3.su"
+        zonefile: "rustam.std9.os3.su.slavezone"
+        # allow-notify: 188.130.155.44 NOKEY
+        request-xfr: 188.130.155.44 NOKEY
+        provide-xfr: 127.0.0.1 NOKEY
         provide-xfr: 188.130.155.42 NOKEY
 ```
 
-This means that my server will notify Ali's server whenever the zonefile on my machine for 
-`artem.std8.os3.su` changes. This zone was delegated to my server by Ali previously.
+Now NSD will block notifications from Rustam's sever. And NSD is allowed to supply information to other programs running on localhost (with ip `127.0.0.1`) and on my Internet facing interface (with ip `188.130.155.42`).
+
+Then to initiate the zone transfer we must execute:
+```
+$ sudo dig @ns0.std9.os3.su axfr rustam.std9.os3.su
+
+; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> @ns0.std9.os3.su axfr rustam.std9.os3.su
+; (1 server found)
+;; global options: +cmd
+rustam.std9.os3.su.	3600	IN	SOA	rustam.std9.os3.su. r\.vaidulloev.innopolis.university. 20190910 10800 3600 604800 38400
+rustam.std9.os3.su.	3600	IN	NS	ns1.std11.os3.su.
+labs.rustam.std9.os3.su. 3600	IN	A	188.130.155.44
+ns.rustam.std9.os3.su.	3600	IN	A	188.130.155.44
+rustam.std9.os3.su.	3600	IN	SOA	rustam.std9.os3.su. r\.vaidulloev.innopolis.university. 20190910 10800 3600 604800 38400
+;; Query time: 0 msec
+;; SERVER: 188.130.155.42#53(188.130.155.42)
+;; WHEN: Thu Sep 12 14:15:14 MSK 2019
+;; XFR size: 5 records (messages 1, bytes 216)
+```
+
+The command means: initiate zone transfer using `axfr` from server `rustam.std9.os3.su` on behalf of `ns0.std9.os3.su`. (or in other words going to the NSD server that is running on my machine).
+
+
+
+source: 
+
+1. https://github.com/NLnetLabs/nsd/tree/master/doc
+
+2.  https://www.acunetix.com/blog/articles/dns-zone-transfers-axfr/
+
+   
+
+
+### Describe the steps in the transfer process.
+
+
+
+### What information did the slave server receive?
+
+
+
 
 
 
