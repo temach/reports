@@ -1248,6 +1248,21 @@ rustam.std9.os3.su.	3600	IN	SOA	rustam.std9.os3.su. r\.vaidulloev.innopolis.univ
 
 The command means: initiate zone transfer using `axfr` from server `rustam.std9.os3.su` on behalf of `ns0.std9.os3.su`. (or in other words going to the NSD server that is running on my machine).
 
+And I could see the following in the NSD log file:
+
+```
+[2019-09-12 14:15:08.490] nsd[7391]: notice: nsd starting (NSD 4.2.2)
+[2019-09-12 14:15:08.492] nsd[7391]: info: creating unix socket /var/tmp/nsd-control.pipe
+[2019-09-12 14:15:08.493] nsd[7393]: info: zonefile 130.188.in-addr.arpa.zone is not modified
+[2019-09-12 14:15:08.493] nsd[7393]: info: zonefile std9.os3.su.zone is not modified
+[2019-09-12 14:15:08.493] nsd[7393]: info: zonefile rustam.std9.os3.su.slavezone does not exist
+[2019-09-12 14:15:08.525] nsd[7393]: notice: nsd started (NSD 4.2.2), pid 7392
+[2019-09-12 14:15:14.568] nsd[7397]: info: axfr for rustam.std9.os3.su. from 188.130.155.42
+[2019-09-12 14:35:01.501] nsd[7397]: info: axfr for rustam.std9.os3.su. from 188.130.155.42
+```
+
+The last two lines indicate successful zone transfer.
+
 
 
 source: 
