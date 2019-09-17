@@ -3,9 +3,12 @@
 #### Artem Abramov SNE19
 
 
-## Preparation
+
+## 1. Preparation
 
 #### a. Select a virtual routing solution that you would like to try. For example (Mikrotik, vyos, Pfsense).
+
+I decided to select MikroTik.
 
 #### b. GNS3 already have a template for these routers (Mikrotik, vyos, Pfsense), try to use these templates as it will save you a lot of time and troubleshooting.
 
@@ -81,7 +84,9 @@ sources:
 2. Radia Perlman - Interconnections: Bridges, Routers, Switches, and Internetworking Protocols -Addison-Wesley Professional (1999)
 3. OSPF Version 2 RFC 2328 https://tools.ietf.org/html/rfc2328
 
-## 2. Deployment:
+
+
+## 2. Deployment
 
 Below is the screenshot showing the sketch of the topology in GNS3 (it is not configured yet):
 
@@ -315,7 +320,7 @@ Screenshot of the topology showing all the networks and all the interfaces is sh
 
 ![lab4-ospf - GNS3_275](INR-Lab-4-ospf.assets/lab4-ospf%20-%20GNS3_275.png)
 
-To check that OSPF was working I configured the interfaces on `PC-2` (on LAN under `routera`) and `PC-1` (on LAN under `routerd`), after which ping was successful as shown below:
+To check that OSPF was working I configured the interfaces on `PC-2` (on LAN under `routera`) and `PC-1` (on LAN under `routerd`), after which ping (and reverse ping as well) was successful as shown below:
 
 ![PC-2_277](INR-Lab-4-ospf.assets/PC-2_277.png)
 
@@ -339,7 +344,7 @@ The administrator needs to add it to the OSPF LSDB database. The information abo
 
 **Deployment**
 
-Create a new router `static` that has its own LAN but is not running OSPF. This LAN is reachable via a static route on `routera` as shown on the topology below (on the bottom-left):
+Create a new router called `static` that has its own LAN but is not running OSPF. This LAN is reachable via a static route on `routera` as shown on the topology below (on the bottom-left):
 
 ![lab4-ospf - GNS3_282](INR-Lab-4-ospf.assets/lab4-ospf%20-%20GNS3_282.png)
 
@@ -426,7 +431,7 @@ Flags: X - disabled, * - default
 ```
 
 
-Its interesting to note that the route to `192.168.1.0/24` (which acts as an intermediate network) does NOT get advertised (because the OSPF is manually configured on `routera` and this network was not added to LSDB), however the static route to the `192.168.2.0/24` network DOES get advertised appropriately and is visible in the configuration of both `routerc` and `routerb` below.
+Its interesting to note that the route to `192.168.1.0/24` (which acts as an intermediate network) does **NOT** get advertised (because the OSPF is manually configured on `routera` and this network was not added to LSDB), however the static route to the `192.168.2.0/24` network **DOES** get advertised appropriately and is visible in the configuration of both `routerc` and `routerb` below.
 
 The route configuration for `routerc` is shown below:
 ```
@@ -490,6 +495,20 @@ B - blackhole, U - unreachable, P - prohibit
                                            10.4.0.1   
 ```
 
+The static route to `192.168.2.0` is stored in LSDB under a special type as shown below in the output of LSDB for `routerd`:
+```
+[admin@MikroTik] > routing ospf lsa print 
+AREA       TYPE         ID             ORIGINATOR     SEQUENCE-NU...        AGE
+backbone   router       10.255.255.1   10.255.255.1       0x80000004       1388
+backbone   router       10.255.255.2   10.255.255.2       0x80000005       1381
+backbone   router       10.255.255.3   10.255.255.3       0x80000005       1393
+backbone   router       10.255.255.4   10.255.255.4       0x80000005       1382
+backbone   network      10.1.0.1       10.255.255.2       0x80000001       1388
+backbone   network      10.2.0.3       10.255.255.3       0x80000002       1383
+backbone   network      10.3.0.2       10.255.255.4       0x80000001       1382
+backbone   network      10.4.0.2       10.255.255.4       0x80000001       1391
+external   as-external  192.168.2.0    10.255.255.1       0x80000001       1440
+```
 
 We can check that the network works by pinging from the `PC-4` to `PC-1` as shown below:
 
@@ -501,17 +520,198 @@ Pinging the other way also works:
 
 
 
-To add the route to the LSDB we must inform OSPF of the `192.168.1.1/24` network (a.k.a `ether6` interface). This can be done with the s
+The details of one of the LSA update packets between `10.1.0.2` and `10.1.0.1` are shown below:
+
+![-Standard input [routerb ether7 to routera ether7]_285](INR-Lab-4-ospf.assets/-Standard%20input%20%5Brouterb%20ether7%20to%20routera%20ether7%5D_285.png)
 
 
-On `routera` networks are introduced to OSPF manually therefore the following command is necessary:
+source: https://wiki.mikrotik.com/wiki/Manual:Routing/OSPF and
+https://wiki.mikrotik.com/wiki/Manual:Simple_Static_Routing and https://forum.mikrotik.com/viewtopic.php?t=67448
+
+#### d. Try to deploy OSPF with authentication between the neighbors.
+
+OSPF has true cryptographic authentication. In OSPF, the LSP itself does not contain an authentication field. Instead, the authentication field is in the header of a link state update packet, and inside there are one or more LSAs. The authentication field is added by a router that is forwarding the information to a neighbor.
+
+
+
+## 3. Verification
+
+### a. How can you check if you have a full adjacency with your router neighbor?
+
+OSPF exchanges information between adjacent routers. Adjacent and neighboring routers are not the same. The routers on the same LAN are neighbours, but they are only adjacent to the single Designated Router that represents the LAN. Information is exchanged only between adjacent routers. A Backup Designated Router is always kept up to date to ease the transition should the primary designated router crash and need to be replaced immediately.
+
+In MikroTik terminology there are only neighboring routers. Furthermore Adjacency means the state of the OSPF protocol, rather than the topology state. Value `state="Full"` in the output of commands below indicates that the routers have full adjacency i.e. LSA information is synchronised, DR and BDR are chosen and working. source: https://wiki.mikrotik.com/wiki/Manual:Routing/OSPF
+
+Checking the neighbours for `routera` is shown below:
 ```
-[admin@MikroTik] > routing ospf network add network=192.168.1.0/24 area=backbone
+[admin@MikroTik] > routing ospf neighbor print 
+ 0 instance=default router-id=10.255.255.2 address=10.2.0.1 interface=ether8 
+   priority=1 dr-address=10.2.0.3 backup-dr-address=10.2.0.1 state="Full" 
+   state-changes=6 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=1m35s 
+
+ 1 instance=default router-id=10.255.255.2 address=10.1.0.1 interface=ether7 
+   priority=1 dr-address=10.1.0.1 backup-dr-address=10.1.0.2 state="Full" 
+   state-changes=6 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=1m35s 
+
+ 2 instance=default router-id=10.255.255.3 address=10.2.0.3 interface=ether8 
+   priority=1 dr-address=10.2.0.3 backup-dr-address=10.2.0.1 state="Full" 
+   state-changes=6 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=1m47s 
 ```
 
-Checking `routera` configuration again:
+Checking the neighbours for `routerb` is shown below:
 ```
-[admin@MikroTik] /ip route> print 
+[admin@MikroTik] > routing ospf neighbor print 
+ 0 instance=default router-id=10.255.255.3 address=10.2.0.3 interface=ether8 
+   priority=1 dr-address=10.2.0.3 backup-dr-address=10.2.0.1 state="Full" 
+   state-changes=6 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=1m21s 
+
+ 1 instance=default router-id=10.255.255.1 address=10.2.0.2 interface=ether8 
+   priority=1 dr-address=10.2.0.3 backup-dr-address=10.2.0.1 state="Full" 
+   state-changes=5 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=1m24s 
+
+ 2 instance=default router-id=10.255.255.1 address=10.1.0.2 interface=ether7 
+   priority=1 dr-address=10.1.0.1 backup-dr-address=10.1.0.2 state="Full" 
+   state-changes=5 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=1m24s 
+
+ 3 instance=default router-id=10.255.255.4 address=10.3.0.2 interface=ether6 
+   priority=1 dr-address=10.3.0.2 backup-dr-address=10.3.0.1 state="Full" 
+   state-changes=5 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=1m20s
+```
+
+
+Checking the neighbours for `routerc` is shown below:
+```
+[admin@MikroTik] > routing ospf neighbor print 
+ 0 instance=default router-id=10.255.255.2 address=10.2.0.1 interface=ether8 
+   priority=1 dr-address=10.2.0.3 backup-dr-address=10.2.0.1 state="Full" 
+   state-changes=5 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=1m3s 
+
+ 1 instance=default router-id=10.255.255.1 address=10.2.0.2 interface=ether8 
+   priority=1 dr-address=10.2.0.3 backup-dr-address=10.2.0.1 state="Full" 
+   state-changes=5 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=1m18s 
+
+ 2 instance=default router-id=10.255.255.4 address=10.4.0.2 interface=ether5 
+   priority=1 dr-address=10.4.0.2 backup-dr-address=10.4.0.1 state="Full" 
+   state-changes=6 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=1m12s
+```
+
+Checking the neighbours for `routerd` is shown below:
+```
+[admin@MikroTik] > routing ospf neighbor print 
+ 0 instance=default router-id=10.255.255.2 address=10.3.0.1 interface=ether6 
+   priority=1 dr-address=10.3.0.2 backup-dr-address=10.3.0.1 state="Full" 
+   state-changes=5 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=41s 
+
+ 1 instance=default router-id=10.255.255.3 address=10.4.0.1 interface=ether5 
+   priority=1 dr-address=10.4.0.2 backup-dr-address=10.4.0.1 state="Full" 
+   state-changes=5 ls-retransmits=0 ls-requests=0 db-summaries=0 
+   adjacency=50s
+```
+
+### b. How can you check in the routing table which networks did you receive from your neighbors?
+
+To check which networks were received the routing table can be interpreted. Routing tables for all routers have already been shown in previous tasks. Interpreting the routing table is straightforward, for example lets consider the routes in `routerd`:
+```
+[admin@MikroTik] > ip route print 
+Flags: X - disabled, A - active, D - dynamic, 
+C - connect, S - static, r - rip, b - bgp, o - ospf, m - mme, 
+B - blackhole, U - unreachable, P - prohibit 
+ #      DST-ADDRESS        PREF-SRC        GATEWAY            DISTANCE
+ 0 ADo  10.0.1.0/24                        10.3.0.1                110
+                                           10.4.0.1          
+ 1 ADo  10.0.2.0/24                        10.3.0.1                110
+ 2 ADo  10.0.3.0/24                        10.4.0.1                110
+ 3 ADC  10.0.4.0/24        10.0.4.1        ether2                    0
+ 4 ADo  10.1.0.0/24                        10.3.0.1                110
+ 5 ADo  10.2.0.0/24                        10.3.0.1                110
+                                           10.4.0.1          
+ 6 ADC  10.3.0.0/24        10.3.0.2        ether6                    0
+ 7 ADC  10.4.0.0/24        10.4.0.2        ether5                    0
+ 8 ADo  10.255.255.2/32                    10.3.0.1                110
+ 9 ADo  10.255.255.3/32                    10.4.0.1                110
+10 ADC  10.255.255.4/32    10.255.255.4    loopback                  0
+11 ADo  192.168.2.0/24                     10.3.0.1                110
+                                           10.4.0.1   
+```
+
+The routing table reveals 9 different networks that are reachable from this router. Network that were received from adjacent routers have the `o` flag set (meaning route comes from OSPF). Networks number `3`, `6` and `7` originate on this router, they have an entry in the `PREF-SRC` column and use one of the router's interfaces as the gateway. The other 6 networks were received from the adjacent routers.
+
+
+
+### c. Use traceroute to verify that you have a full OSPF network.
+
+The topology is shown below for reference:
+
+![lab4-ospf - GNS3_288](INR-Lab-4-ospf.assets/lab4-ospf%20-%20GNS3_288.png)
+
+Running traceroute from client1 to client3 (i.e. across the whole network) is shown below:
+
+![QEMU (INR-Lab-4-ospf.assets/QEMU%20(client1)%20-%20TigerVNC_286.png) - TigerVNC_286](../../../Pictures/QEMU%20(client1)%20-%20TigerVNC_286.png)
+
+
+
+And reverse traceroute from client3 to client1 is shown below:
+
+![QEMU (INR-Lab-4-ospf.assets/QEMU%20(client3)%20-%20TigerVNC_287.png) - TigerVNC_287](../../../Pictures/QEMU%20(client3)%20-%20TigerVNC_287.png)
+
+
+
+Which indicates that the packets go through the ethernet-hub that joins `routerb` and `routerc`. Now lets suspend the link between the ethernet-hub and `routerb` as shown below:
+
+![lab4-ospf - GNS3_289](INR-Lab-4-ospf.assets/lab4-ospf%20-%20GNS3_289.png)
+
+
+
+Running traceroute on the modified topology from client1 to client3 is shown below:
+
+![QEMU (INR-Lab-4-ospf.assets/QEMU%20(client1)%20-%20TigerVNC_290.png) - TigerVNC_290](../../../Pictures/QEMU%20(client1)%20-%20TigerVNC_290.png)
+
+Lets now run traceroute from client3 to `PC-4` (via the static route) as shown below:
+
+![QEMU (INR-Lab-4-ospf.assets/QEMU%20(client3)%20-%20TigerVNC_291.png) - TigerVNC_291](../../../Pictures/QEMU%20(client3)%20-%20TigerVNC_291.png)
+
+Modify the topology further to disable the ethernet-hub altogether as shown below:
+
+![lab4-ospf - GNS3_292](INR-Lab-4-ospf.assets/lab4-ospf%20-%20GNS3_292.png)
+
+Run traceroute from client3 to `PC-4` again as shown below:
+
+![QEMU (INR-Lab-4-ospf.assets/QEMU%20(client3)%20-%20TigerVNC_293-1568691441888.png) - TigerVNC_293](../../../Pictures/QEMU%20(client3)%20-%20TigerVNC_293.png)
+
+This is the longest route possible with the current topology.
+
+
+### d. Which router is selected as DR and which one is BDR?
+
+In OSPF, the designated router is responsible for collecting acknowledgments for each LSA from the other routers. The DR in OSPF keeps a lot of state regarding which routers have which LSA. The BDR also listens to all the explicit acknowledgments and keeps track of which routers have received which LSA.
+
+The DR router should be a powerful router. The BDR should also be a powerful router. They must be able to fit the whole LSA database. 
+
+The Task `3.a` already showed how to view neighbor information. The choice of DR and BDR router is also reflected there under the values `dr-address=A.A.A.A` and `backup-dr-address=A.A.A.A`. Below is the summary for all networks:
+
+1.	10.2.0.0/24 - DR=10.2.0.3, BDR=10.2.0.1
+2.	10.1.0.0/24 - DR=10.1.0.1, BDR=10.1.0.2
+3.	10.3.0.0/24 - DR=10.3.0.2, BDR=10.3.0.1
+4.	10.4.0.0/24 - DR=10.4.0.2, BDR=10.4.0.1 
+
+For all the other LANs (with client machines) their closest OSPF enabled router acts as the DR for the LAN.
+
+### e. Check what is the cost for each network that has been received by OSPF in the routing table.
+
+The cost for each network is shown in the DISTANCE column. For example on `routera`:
+```
+[admin@MikroTik] > ip route print 
 Flags: X - disabled, A - active, D - dynamic, 
 C - connect, S - static, r - rip, b - bgp, o - ospf, m - mme, 
 B - blackhole, U - unreachable, P - prohibit 
@@ -520,104 +720,23 @@ B - blackhole, U - unreachable, P - prohibit
  1 ADo  10.0.2.0/24                        10.1.0.1                110
                                            10.2.0.1          
  2 ADo  10.0.3.0/24                        10.2.0.3                110
- 3 ADo  10.0.4.0/24                        10.1.0.1                110
+ 3 ADo  10.0.4.0/24                        10.2.0.3                110
+                                           10.1.0.1          
                                            10.2.0.1          
-                                           10.2.0.3          
  4 ADC  10.1.0.0/24        10.1.0.2        ether7                    0
  5 ADC  10.2.0.0/24        10.2.0.2        ether8                    0
  6 ADo  10.3.0.0/24                        10.1.0.1                110
                                            10.2.0.1          
  7 ADo  10.4.0.0/24                        10.2.0.3                110
  8 ADC  10.255.255.1/32    10.255.255.1    loopback                  0
- 9 ADC  192.168.1.0/24     192.168.1.1     ether6                    0
-10 A S  192.168.2.0/24                     ether6                    1
+ 9 ADo  10.255.255.2/32                    10.1.0.1                110
+                                           10.2.0.1          
+10 ADo  10.255.255.3/32                    10.2.0.3                110
+11 ADo  10.255.255.4/32                    10.2.0.3                110
+                                           10.1.0.1          
+                                           10.2.0.1          
+12 ADC  192.168.1.0/24     192.168.1.1     ether6                    0
+13 A S  192.168.2.0/24                     192.168.1.2               1
 ```
 
-
-
-Adding a static route to a non-existent location `255.255.255.0/24` via network `10.0.1.1` is shown below, this was done on `routerb`:
-
-```
-[admin@MikroTik] > ip route add dst-address=255.255.255.0/24 gateway=10.0.1.1
-[admin@MikroTik] > ip route
-[admin@MikroTik] /ip route> print
-Flags: X - disabled, A - active, D - dynamic, 
-C - connect, S - static, r - rip, b - bgp, o - ospf, m - mme, 
-B - blackhole, U - unreachable, P - prohibit 
- #      DST-ADDRESS        PREF-SRC        GATEWAY            DISTANCE
- 0 ADo  10.0.1.0/24                        10.2.0.2                110
-                                           10.1.0.2          
- 1 ADC  10.0.2.0/24        10.0.2.1        ether2                    0
- 2 ADo  10.0.3.0/24                        10.2.0.3                110
- 3 ADo  10.0.4.0/24                        10.3.0.2                110
- 4 ADC  10.1.0.0/24        10.1.0.1        ether7                    0
- 5 ADC  10.2.0.0/24        10.2.0.1        ether8                    0
- 6 ADC  10.3.0.0/24        10.3.0.1        ether6                    0
- 7 ADo  10.4.0.0/24                        10.3.0.2                110
-                                           10.2.0.3          
-```
-
-Checking the routes on `routerc` shows:
-
-```
-[admin@MikroTik] > ip route add dst-address=192.168.2.0/24 gateway=192.168.1.2 
-```
-
-
-source: https://wiki.mikrotik.com/wiki/Manual:Simple_Static_Routing
-
-
-#### d. Try to deploy OSPF with authentication between the neighbors.
-
-OSPF has true cryptographic authentication. In OSPF, the LSP itself does not contain an authentication field. Instead, the authentication field is in the header of a link state update packet, and inside there are one or more LSAs. The authentication field is added by a router that is forwarding the information to a neighbor.
-
-
-
-#### Use traceroute to verify that you have a full OSPF network.
-
-![Selection_263](INR-Lab-4-ospf.assets/Selection_263.png)
-
-There are five basic types of LSAs in OSPF, not to be confused with 5 types of OSPF messages.
-1.	Type 1—router links advertisement
-2.	Type 2—network links advertisement
-3.	Type 3—network summary link advertisement
-4.	Type 4—AS boundary routers summary link advertisement
-5.	Type 5—AS external link advertisement
-
-
-
-### Which router is selected as DR and which one is BDR?
-
-In OSPF, the designated router is responsible for collecting explicit acknowledgments for
-each LSA (link state advertisement, OSPF's terminology for LSP) from the other routers.
-Because the DR in OSPF keeps a lot of state regarding which routers have which LSAs, it
-would require a lot of time and protocol messages for another router to take over in the event
-that the DR crashed. Therefore, OSPF elects not only a DR but also a backup designated
-router (BDR). The BDR also listens to all the explicit acknowledgments and keeps track of
-which routers have received which LSAs.
-
-The DR router should be a powerful router. The BDR should also be a powerful router. They must be able to fit all LSP database. The purpose of a Designated Router is to allow the LAN to be treated like a node.
-
-
-
-
-
-
-
-#### Until now every router was in area 0, try to create more networks and assign them to different OSPF areas.
-![Selection_262](INR-Lab-4-ospf.assets/Selection_262.png)
-
-Another kind of router is the AS boundary router. It injects routes to exter-
-nal destinations on other ASes into the area.
-
-Each router that is connected to two or more areas is called an area border
-router. It must also be part of the backbone. The job of an area border router is
-to summarize the destinations in one area and to inject this summary into the other
-areas to which it is connected. This summary includes cost information but not all
-the details of the topology within an area. Passing cost information allows hosts in
-other areas to find the best area border router to use to enter an area. Not passing
-topology information reduces traffic and simplifies the shortest-path computations
-of routers in other areas. However, if there is only one border router out of an
-area, even the summary does not need to be passed. Routes to destinations out of
-the area always start with the instruction ‘‘Go to the border router.’’ This kind of
-area is called a stub area.
+We can see the distances are `0` for directly connected, `110` is the cost that is assigned by the OSPF instance and `1` is the cost for the static route (on other routers this route has the same cost as other routes - `110`).
