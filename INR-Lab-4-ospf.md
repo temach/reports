@@ -524,13 +524,8 @@ The details of one of the LSA update packets between `10.1.0.2` and `10.1.0.1` a
 
 ![-Standard input [routerb ether7 to routera ether7]_285](INR-Lab-4-ospf.assets/-Standard%20input%20%5Brouterb%20ether7%20to%20routera%20ether7%5D_285.png)
 
-
 source: https://wiki.mikrotik.com/wiki/Manual:Routing/OSPF and
 https://wiki.mikrotik.com/wiki/Manual:Simple_Static_Routing and https://forum.mikrotik.com/viewtopic.php?t=67448
-
-#### d. Try to deploy OSPF with authentication between the neighbors.
-
-OSPF has true cryptographic authentication. In OSPF, the LSP itself does not contain an authentication field. Instead, the authentication field is in the header of a link state update packet, and inside there are one or more LSAs. The authentication field is added by a router that is forwarding the information to a neighbor.
 
 
 
