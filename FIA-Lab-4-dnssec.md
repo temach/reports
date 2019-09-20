@@ -434,7 +434,7 @@ std9.os3.su.	3600	IN	MX	20 ansible.std9.os3.su.
 
 
 
-Then increase zone serial:
+Then increase zone serial number and check the result:
 
 ```
 # ldns-read-zone -S YYYYMMDDxx std9.os3.su.zone > std9.os3.su.zone.tmp
@@ -715,9 +715,7 @@ std9.os3.su.	IN	DS	59198 13 2 3a9589a84e5c2926093b0616dd96dcbabcc8502ce5d4af721f
 
 
 
-Finally verify the full chain of trust:
-
-
+Finally its possible to verify the full chain of trust.
 
 
 
@@ -766,15 +764,13 @@ os3.su.			1799	IN	RRSIG	DNSKEY 13 2 1800 20191014120006 20190916120006 4589 os3.
 ;; MSG SIZE  rcvd: 297
 ```
 
-Thus I need the record below:
+Therefore the following DNSKEY record from os3.su. is used to verify the RRSIG of the DS record:
 
 ```
 os3.su.	1799	IN	DNSKEY	256 3 13 Trkc+CYdhMaig9lAc7DIJ1XkXlDf92eQmvJjcK23YP6MjFRn8vsD8kbgRfkZvUt7pRgPYyD6S34i5tv504ZLFQ== 
 ```
 
-
-
-However I will also need to verify the ZSK for os3.su., for this I will use the public KSK of os3.su.
+However the ZSK for os3.su will be further verified with the help of public KSK of os3.su.
 
 
 
@@ -794,7 +790,7 @@ The information relating to key rollover is in section 4 of the RFC 6781 (https:
 
 The double-signature ZSK rollover has only three stages instead of four. Its disadvantage is that during the rollover the number of RRSIG in the zone doubles, which might cause problems for very big zones. In my case the zone is small enougth to afford duplication without impacting the server performance. The key pre-publication scheme has an advantage that the key a possible future key can be added ahead today and in case the current ZSK is compromised the switch to the new key can be done rather quicky, because new ZSK would have already propagated. (The key pre-publication scheme also requiers more parental for KSK rollovers).
 
-For my zone I would choose the double-signature rollover scheme.
+To conclude, for my zone I would choose the double-signature rollover scheme.
 
 #### How would you integrate this procedure with the tools for signing your zone? Which timers are important?
 
