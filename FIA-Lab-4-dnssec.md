@@ -116,83 +116,71 @@ sources:
 
 The current unbound config is shown below:
 ```
-artem@ unbound$ cat unbound.conf
 server:
-	verbosity: 1
-	num-threads: 1
-	interface: 0.0.0.0
-	port: 5353
-	access-control: 0.0.0.0/0 allow
-	access-control: ::0/0 allow
-	root-hints: "/usr/local/etc/unbound/root.hints"
-	username: ""
-	logfile: "/var/log/unbound.log"
+  verbosity: 8
+  do-daemonize: no
+  num-threads: 1
+  interface: 0.0.0.0
+  port: 53
+  access-control: 0.0.0.0/0 allow
+  username: "unbound"
+  logfile: "/var/log/unbound.log"
+# trust-anchor-file: trusted-key.key
 python:
 remote-control:
-	control-enable: yes
-	control-interface: /var/tmp/unbound-control.pipe
+  control-enable: yes
+  control-interface: "/var/tmp/unbound-control.pipe"
 ```
 
 The steps are as follows:
-1. Fetch the trust anchor file from IANA using HTTPS
-2. Fetch the S/MIME signature for the trust anchor file from IANA using HTTPS
-3. Validate the signature on the trust anchor file using a built-in IANA CA key
-4. Extract the trust anchor key digests from the trust anchor file
-5. Check the validity period for each digest
-6. Verify that the trust anchors match the KSK in the root zone file
-7. Write out the trust anchors as a DNSKEY and DS records
+1. Go to ICANN website to find KSK for root server (public part)
+2. Use unbound-anchor to download the root public KSK
+3. Verify that the key download by unbound-anchor matches the one displayed on the website
+4. Write out the verified public KSK as the DNSKEY record
+5. Check what how the digest for DS is calculated from IANA website
+6. Calculate the digest from the DNSKEY record and compose the DS record
+7. Install the DNSKEY and DS records as root.key
 
+Go to ICANN website to find the KSK for root server shown there:
+https://www.icann.org/dns-resolvers-updating-latest-trust-anchor
 
-I checked what certificate information does `unbound-anchor` use as shown below:
+Using unbound-anchor to download the KSK (public part) for root is shown below:
 ```
-artem@ unbound$ sudo unbound-anchor -l
-. IN DS 19036 8 2 49AAC11D7B6F6446702E54A1607371607A1A41855200FD2CE1CDDE32F24E8FB5
-. IN DS 20326 8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D
-
------BEGIN CERTIFICATE-----
-MIIDdzCCAl+gAwIBAgIBATANBgkqhkiG9w0BAQsFADBdMQ4wDAYDVQQKEwVJQ0FO
-TjEmMCQGA1UECxMdSUNBTk4gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkxFjAUBgNV
-BAMTDUlDQU5OIFJvb3QgQ0ExCzAJBgNVBAYTAlVTMB4XDTA5MTIyMzA0MTkxMloX
-DTI5MTIxODA0MTkxMlowXTEOMAwGA1UEChMFSUNBTk4xJjAkBgNVBAsTHUlDQU5O
-IENlcnRpZmljYXRpb24gQXV0aG9yaXR5MRYwFAYDVQQDEw1JQ0FOTiBSb290IENB
-MQswCQYDVQQGEwJVUzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKDb
-cLhPNNqc1NB+u+oVvOnJESofYS9qub0/PXagmgr37pNublVThIzyLPGCJ8gPms9S
-G1TaKNIsMI7d+5IgMy3WyPEOECGIcfqEIktdR1YWfJufXcMReZwU4v/AdKzdOdfg
-ONiwc6r70duEr1IiqPbVm5T05l1e6D+HkAvHGnf1LtOPGs4CHQdpIUcy2kauAEy2
-paKcOcHASvbTHK7TbbvHGPB+7faAztABLoneErruEcumetcNfPMIjXKdv1V1E3C7
-MSJKy+jAqqQJqjZoQGB0necZgUMiUv7JK1IPQRM2CXJllcyJrm9WFxY0c1KjBO29
-iIKK69fcglKcBuFShUECAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8B
-Af8EBAMCAf4wHQYDVR0OBBYEFLpS6UmDJIZSL8eZzfyNa2kITcBQMA0GCSqGSIb3
-DQEBCwUAA4IBAQAP8emCogqHny2UYFqywEuhLys7R9UKmYY4suzGO4nkbgfPFMfH
-6M+Zj6owwxlwueZt1j/IaCayoKU3QsrYYoDRolpILh+FPwx7wseUEV8ZKpWsoDoD
-2JFbLg2cfB8u/OlE4RYmcxxFSmXBg0yQ8/IoQt/bxOcEEhhiQ168H2yE5rxJMt9h
-15nu5JBSewrCkYqYYmaxyOC3WrVGfHZxVI7MpIFcGdvSb2a1uyuua8l0BKgk3ujF
-0/wsHNeP22qNyVO+XVBzrM8fk8BSUFuiT/6tZTYXRtEt5aKQZgXbKU5dUF3jT9qg
-j/Br5BZw3X/zd325TvnswzMC1+ljLzHnQGGk
------END CERTIFICATE-----
-```
-
-Then I verified it with the XML file that is present at IANA website:
-
-![Selection_298](FIA-Lab-4-dnssec.assets/Selection_298.png)
-
-Then I used the utility to generate the `root.key` file with DNSKEY record for root zone:
-```
-artem@ unbound$ sudo unbound-anchor 
-artem@ unbound$ cat root.key 
+$ sudo unbound-anchor
+$ cat trusted-key.key
 ; autotrust trust anchor file
 ;;id: . 1
-;;last_queried: 1568761433 ;;Wed Sep 18 02:03:53 2019
-;;last_success: 1568761433 ;;Wed Sep 18 02:03:53 2019
-;;next_probe_time: 1568800396 ;;Wed Sep 18 12:53:16 2019
+;;last_queried: 1568936946 ;;Fri Sep 20 02:49:06 2019
+;;last_success: 1568936946 ;;Fri Sep 20 02:49:06 2019
+;;next_probe_time: 1568977737 ;;Fri Sep 20 14:08:57 2019
 ;;query_failed: 0
 ;;query_interval: 43200
 ;;retry_time: 8640
-.	86400	IN	DNSKEY	257 3 8 AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU= ;{id = 20326 (ksk), size = 2048b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1568760576 ;;Wed Sep 18 01:49:36 2019
+.	IN	DNSKEY	257 	3 8 FFFFFFFFFFFFyTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU=
+.	3600	IN	DNSKEY	257 3 8 AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU= ;{id = 20326 (ksk), size = 2048b} ;;state=2 [  VALID  ] ;;count=0 ;;lastchange=1568936946 ;;Fri Sep 20 02:49:06 2019
 ```
 
+The actual key is shown below:
+```
+AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU=
+```
 
-source: 
+And it matches bit-by-bit with that is shown on the ICANN website, so the key that was transfered with unbound-anchor is verified over a secure HTTPS channel with ICANN website.
+
+The procedure for caluclating the digest that makes up the DS record from DNSKEY record
+is described in RFC 4509 (https://tools.ietf.org/html/rfc4509)
+
+To verify the digest I also used the information from IANA website as shown below:
+ ![Selection_298](FIA-Lab-4-dnssec.assets/Selection_298.png)
+
+The target digest is the key with key tag is 20326. The other key is the digest for the old root KSK.
+
+My final root.key file looked as shown below:
+```
+.	3600	IN	DNSKEY	257 3 8 AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU=
+```
+
+source:
 
 1. https://stackoverflow.com/questions/36499494/how-do-i-verify-a-root-dns-trust-anchor
 2. https://www.nlnetlabs.nl/documentation/unbound/howto-anchor/
@@ -200,54 +188,54 @@ source:
 4. https://www.iana.org/dnssec/files
 
 
-### Use dig or drill to verify the validity of DNS records for isc . org and os3. su
+### Use dig or drill to verify the validity of DNS records for isc.org and os3.su
 ### How does dig (Hint: it’s about a flag) or drill show whether DNSSEC full-chain-of-trust validation was succesful or not?
 
 Configuration for unbound is below:
 
 ```
-artem@ unbound$ cat unbound.conf
 server:
-	logfile: "/var/log/unbound.log"
-	verbosity: 4
-	num-threads: 1
-	interface: 0.0.0.0
-	port: 5353
-	access-control: 0.0.0.0/0 allow
-	access-control: ::0/0 allow
-	root-hints: "/usr/local/etc/unbound/root.hints"
-	username: ""
-	auto-trust-anchor-file: "/usr/local/etc/unbound/root.key"
+  verbosity: 8
+  do-daemonize: no
+  num-threads: 1
+  interface: 0.0.0.0
+  port: 53
+  access-control: 0.0.0.0/0 allow
+  username: "unbound"
+  logfile: "/var/log/unbound.log"
+  trust-anchor-file: root.key
 python:
 remote-control:
-	control-enable: yes
-	control-interface: /var/tmp/unbound-control.pipe
+  control-enable: yes
+  control-interface: "/var/tmp/unbound-control.pipe"
 ```
 
 
-Verifying `.org` (the result must have `ad` flag set):
+Verifying `isc.org` (the result must have `ad` flag set for Authenticated Data):
 ```
-artem@ unbound$ dig org. SOA +dnssec @127.0.0.1
+$ dig isc.org SOA +dnssec @127.0.0.1
 
-; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> org. SOA +dnssec @127.0.0.1
+; <<>> DiG 9.14.4 <<>> isc.org SOA +dnssec @127.0.0.1
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 44722
-;; flags: qr rd ra ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 10108
+;; flags: qr rd ra; QUERY: 1, ANSWER: 3, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags: do; udp: 4096
 ;; QUESTION SECTION:
-;org.				IN	SOA
+;isc.org.			IN	SOA
 
 ;; ANSWER SECTION:
-org.			900	IN	SOA	a0.org.afilias-nst.info. noc.afilias-nst.info. 2013631234 1800 900 604800 86400
-org.			900	IN	RRSIG	SOA 7 1 900 20191008231642 20190917221642 47612 org. lkzm5R6Wa2ZmLFRmgONcexgI1yw26CpR92W9/Ya/ZSZrzq9wtDRgdisR rNxEl0ngggSTft+aTZacUKmTwdmGATp8OxyB/CeYi4n14XbEKMC2Xmup S9yxmrbNkfRkPGAE/rS6TT56eS1P8emlvEWeKmoJ9E8BqQHuq+R0CqPA GAU=
+isc.org.		7199	IN	SOA	ns-int.isc.org. hostmaster.isc.org. 2019063357 7200 3600 24796800 3600
+isc.org.		7199	IN	RRSIG	SOA 5 2 7200 20191019151739 20190919141739 28347 isc.org. 3qOCZUHLyopGeo0HeStxSgJW3nM4Xt20PxQOfZKRGHFTta7kBfT0k8Cl GHJz89wQ/CyswACSnHWvoewZu79KxM2QfZAYRAR8nVCaGR6e1iBFUSrx Fnhz0Sh1aaL/A2I1CeAhaCyKsDcgbcXEDFiRvwoY1JHWHJiV+0QSNIT8 EqY=
+isc.org.		7199	IN	RRSIG	SOA 13 2 7200 20191019151739 20190919141739 27566 isc.org. QYr8vThnkhgVI3/mhJP8g1IJARYSIWOS2TueGMvU+BENq5bhMSm5uyvt 1vKhJdqkc1lqc0ptVCbuWnxmRoEvfg==
 
-;; Query time: 1170 msec
+;; Query time: 889 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1)
-;; WHEN: Wed Sep 18 02:17:45 MSK 2019
-;; MSG SIZE  rcvd: 258
+;; WHEN: Fri Sep 20 03:50:40 MSK 2019
+;; MSG SIZE  rcvd: 360
+
 ```
 
 Verifying the `os3.su`  (the result must have `ad` flag set):
@@ -283,9 +271,9 @@ In `/usr/local/etc/unbound/root.key`
 
 ### How do managed keys differ from trusted keys ? Which RFC describes the mechanisms for managed keys?
 
-trusted-keys are some manually-maintained DNSSEC keys for a particular zone. Trusted-keys are copies of DNSKEY RRs for zones that are used to form the topmost link in the trust chain.
+trusted-keys are some manually maintained DNSSEC keys for a particular zone. Trusted-keys are copies of DNSKEY RRs for a zone. That record is used to form the topmost link in the trust chain.
 
-managed-keys are some automatically-maintained DNSSEC keys for a particular zone (for example the root zone). If the keys are maintained automatically then in case of key rollover for the zone the keys will be updated automatically. The managed-keys like trusted-keys, define DNSSEC security roots.
+managed-keys are some automatically maintained DNSSEC keys for a particular zone (for example the root zone). If the keys are maintained automatically then in case of key rollover for the zone the keys will be updated automatically. The managed-keys like trusted-keys, define DNSSEC security roots.
 
 The RFC that describes the process for automatically updating the zone keys is RFC5011 - Automated Updates of DNS Security (DNSSEC) Trust Anchors.
 
@@ -301,54 +289,48 @@ sources:
 
 The key before modification is below:
 ```
-artem@ unbound$ cat root.key
-. 	86400	IN DS 		19036 	8 2 49AAC11D7B6F6446702E54A1607371607A1A41855200FD2CE1CDDE32F24E8FB5
-. 	86400	IN DS 		20326 	8 2 E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D
-.	86400	IN DNSKEY	257 	3 8 AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU=
+.	3600	IN	DNSKEY	257 3 8 AwEAAaz/tAm8yTn4Mfeh5eyI96WSVexTBAvkMgJzkKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU=
 ```
 
 
 The modified key is shown below:
 ```
-. 	86400	IN DS 		19036 	8 2 FFFFFFFFFFFF6446702E54A1607371607A1A41855200FD2CE1CDDE32F24E8FB5
-. 	86400	IN DS 		20326 	8 2 FFFFFFFFFFFF1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D
-.	86400	IN DNSKEY	257 	3 8 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXxwqAnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU=
+.	IN	DNSKEY	257 	3 8 FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFKTOiW1vkIbzxeF3+/4RgWOq7HrxRixHlFlExOLAJr5emLvN7SWXgnLh4+B5xQlNVz8Og8kvArMtNROxVQuCaSnIDdD5LKyWbRd2n9WGe2R8PzgCmr3EgVLrjyBxWezF0jLHwVN8efS3rCj/EWgvIWgb9tarpVUDK/b58Da+sqqls3eNbuv7pr+eoZG+SrDK6nWeL3c6H5Apxz7LjVc1uTIdsIXxuOLYA4/ilBmSVIzuDWfdRUfhHdY6+cn8HFRm+2hM8AnXGXws9555KrUB5qihylGa8subX2Nn6UwNR1AkUTV74bU=
 ```
-
 
 
 ### How did you server react?
 
-Querying the `.org` domain is below:
-```
-artem@ unbound$ dig org. SOA +dnssec @127.0.0.1
+The server started normally, however it could not validate any sites.
 
-; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> org. SOA +dnssec @127.0.0.1
+Querying the `isc.org` domain is below:
+```
+$ dig isc.org SOA +dnssec @127.0.0.1
+; <<>> DiG 9.14.4 <<>> isc.org SOA +dnssec @127.0.0.1
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 7797
+;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 34399
 ;; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
 ; EDNS: version: 0, flags: do; udp: 4096
 ;; QUESTION SECTION:
-;org.				IN	SOA
+;isc.org.			IN	SOA
 
-;; Query time: 2295 msec
+;; Query time: 2643 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1)
-;; WHEN: Wed Sep 18 02:50:21 MSK 2019
-;; MSG SIZE  rcvd: 32
+;; WHEN: Fri Sep 20 04:04:27 MSK 2019
+;; MSG SIZE  rcvd: 36
 ```
 
 
 And querying the `os3.su` domain is below:
 ```
-artem@ unbound$ dig os3.su. SOA +dnssec @127.0.0.1
-
-; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> os3.su. SOA +dnssec @127.0.0.1
+$ dig os3.su SOA +dnssec @127.0.0.1    
+; <<>> DiG 9.14.4 <<>> os3.su SOA +dnssec @127.0.0.1
 ;; global options: +cmd
 ;; Got answer:
-;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 32253
+;; ->>HEADER<<- opcode: QUERY, status: SERVFAIL, id: 17289
 ;; flags: qr rd ra; QUERY: 1, ANSWER: 0, AUTHORITY: 0, ADDITIONAL: 1
 
 ;; OPT PSEUDOSECTION:
@@ -356,9 +338,9 @@ artem@ unbound$ dig os3.su. SOA +dnssec @127.0.0.1
 ;; QUESTION SECTION:
 ;os3.su.				IN	SOA
 
-;; Query time: 1646 msec
+;; Query time: 433 msec
 ;; SERVER: 127.0.0.1#53(127.0.0.1)
-;; WHEN: Wed Sep 18 02:49:00 MSK 2019
+;; WHEN: Fri Sep 20 04:05:05 MSK 2019
 ;; MSG SIZE  rcvd: 35
 ```
 
