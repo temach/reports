@@ -715,9 +715,13 @@ std9.os3.su.	IN	DS	59198 13 2 3a9589a84e5c2926093b0616dd96dcbabcc8502ce5d4af721f
 
 
 
-Finally its possible to verify the full chain of trust.
+Finally its possible to verify the full chain of trust:
 
+![Selection_306](FIA-Lab-4-dnssec.assets/Selection_306.png)
 
+And verifying with another service:
+
+![Selection_307](FIA-Lab-4-dnssec.assets/Selection_307.png)
 
 source: https://github.com/jeroenh/signzone/
 
@@ -727,7 +731,7 @@ source: https://github.com/jeroenh/signzone/
 
 ### Does your parent zone offer secure delegation?
 
-No, because the parent zone does not have a DS record that would contain the hash of my KSK. Therefore the authenticity of my KSK can not be verified with the parent zone.
+Before my DS record was added to the parent zone, it did not offer secure delegation. However after the record was added, the full chain of trust could be build, thus offering secure zone delegation.
 
 
 ### Describe the DS and DNSKEY records from os3. su that are important for your domain. Which keys are used to sign them?
