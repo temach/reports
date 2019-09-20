@@ -794,12 +794,34 @@ To conclude, for my zone I would choose the double-signature rollover scheme.
 
 #### How would you integrate this procedure with the tools for signing your zone? Which timers are important?
 
+To integrate this procedure with my zone is a multi-step process:
 
+1. Generate the new ZSK with `ldns-keygen -a ECDSAP256SHA256 std9.os3.su.` The key should be given a certain duration after which it is scheduled for a rollover.
+2. Copy the contents from the  `*.key` file to your zone file (i.e. add the DNSKEY entry to your zone file). The DNSKEY must also be added to the DNSKEY RRset. 
+3. Use `ldns-signzone` to re-sign the zone, generating an alternative RRSIG (using the new ZSK) for each records. This is similar to how the zone was signed initially. Increment SOA serial number.
+4. Then we must wait until all the data from old key version of the zone has been replaced in all the secondary/slave servers and also we must wait until it has expired from remote caches. This time amounts to at least the propagation delay plus the Maximum Zone TTL that is specified in the zonefile.
+5. After that timer has expired the old ZSK is removed from the zone and all the signatures that were created with it. The key set contains the KSK and new ZSK.  Use `ldns-signzone` to re-sign the zone with just the two keys.
+
+A typical graph for the key rollover is shown below:
+
+![](FIA-Lab-4-dnssec.assets/Grafik-Timeline-ZSK-Key-Rollover.png)
+
+
+
+ZSK keys are normally rolled over every 3-6 months. The image above reveals an "Inactive" phase, which is not necessary in the Double-Signature rollover scheme.
+
+source: https://www.redhat.com/en/blog/what-you-need-know-about-first-ever-dnssec-root-key-rollover-october-11-2018 and https://blog.webernetz.net/dnssec-zsk-key-rollover/
 
 
 ### Key-Signing Key rollover
 
 #### Can you use the same procedure for a KSK rollover? What does this depend on?
 
-Double-Signature scheme can also be used for a KSK rollover. 
+Double-Signature scheme can also be used for a KSK rollover, however it needs some modifications, as discussed below. A KSK rollover is different because it requires interaction with the parent zone (or in case of a island-of-trust or root zone, requires replacing the trust-anchor). This introduces extra delay. On the other hand KSK only signs the RRSIG for DNSKEY RRset, so zone size is irrelevant to the key rollover.
+
+The procedure uses is performed in 3 stages, but one stage is performed on the nameserver of the parent zone. Before the rollover begins we must record the TTL of the DS RR which points to our KSK. Then during the rollover the administrator generates a new KSK, but first gives it to the parent zone. We have to wait until the administrator of the parent zone generates a DS RR and it gets published on all authoritative servers for the parent zone. This time is at least the TTL of the DS RR that was recorded before the rollover. So after the timeout the parent zone replaces the old DS RR with the new version, finally the old KSK can be removed from our zone.
+
+This procedure depends on the premise that the parent only has one DS RR (per algorithm) per zone. The scenario also assumes  that the KSK is not in use as a trust anchor. In other words that the validation depends exclusively on the parental DS record for verification.
+
+
 
