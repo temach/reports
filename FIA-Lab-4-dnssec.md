@@ -386,7 +386,7 @@ Keys use different sizes and algorithms for:
 
 Lifetimes are different for the same reason - if ZSK uses SHA1 then theoretically it is possible to compromise it (source: https://shattered.io/), so it must either use a more complex encryption or have a regular scheduled key rollover.
 
-However using different algorithms complicates the setup significantly and according to the wording in RFC 6840 (https://tools.ietf.org/html/rfc6840#section-5.11) the zone must be signed with each algorithm. This is also discussed in RFC 4035.
+However using different algorithms complicates the setup significantly and according to the RFC 6840 (https://tools.ietf.org/html/rfc6840#section-5.11) the zone must be signed with each algorithm. This is also discussed in RFC 4035.
 
 source: https://security.stackexchange.com/questions/80493/dnssec-does-the-algorithm-of-the-zsk-need-to-match-the-algorithm-of-the-ksk
 
@@ -397,7 +397,7 @@ source: https://security.stackexchange.com/questions/80493/dnssec-does-the-algor
 First step is to check my zone file:
 
 ```
-artem@ nsd$ ldns-read-zone std9.os3.su.zone 
+$ ldns-read-zone std9.os3.su.zone 
 std9.os3.su.	3600	IN	SOA	ns0.std9.os3.su. admin.std9.os3.su. 2019091900 10800 3600 604800 38400
 std9.os3.su.	3600	IN	NS	ns0.std9.os3.su.
 ns0.std9.os3.su.	3600	IN	A	188.130.155.42
@@ -488,7 +488,7 @@ Newly created files:
 -rw------- 1 root root   114 Sep 19 22:45 Kstd9.os3.su.+013+62425.private
 ```
 
-And their contents:
+And their contents (just catenate all the three new files together):
 ```
 # cat Kstd9.os3.su.+013+62425.*
 
@@ -504,7 +504,7 @@ Create KSK:
 ```
 # ldns-keygen -a ECDSAP256SHA256 -k std9.os3.su.
 Kstd9.os3.su.+013+59198
-root@artem-209-HP-EliteDesk-800-G1-SFF:/usr/local/etc/nsd# ll
+# ll
 total 60
 drwxr-xr-x 2 root root  4096 Sep 19 22:46 ./
 drwxr-xr-x 4 root root  4096 Sep  6 03:26 ../
@@ -521,13 +521,13 @@ drwxr-xr-x 4 root root  4096 Sep  6 03:26 ../
 -rw-r--r-- 1 root root   652 Sep 19 21:24 std9.os3.su.zone
 ```
 
-Newly created files:
+Newly created files (for KSK a `Kstd9.os3.su.+013+59198.ds` file was also created):
 ```
 -rw-r--r-- 1 root root    95 Sep 19 22:46 Kstd9.os3.su.+013+59198.ds
 -rw-r--r-- 1 root root   154 Sep 19 22:46 Kstd9.os3.su.+013+59198.key
 -rw------- 1 root root   114 Sep 19 22:46 Kstd9.os3.su.+013+59198.private
 ```
-And their contents:
+And their contents (just catenate all the three new files together):
 ```
 # cat Kstd9.os3.su.+013+59198.*
 
@@ -541,7 +541,7 @@ PrivateKey: O3NqTtyNpF5h+rj/rqIVF99SeZQv8txqiNckXaKtKNA=
 ```
 
 
-Then sign the zone:
+Then sign the zone. I use an expiry date that is 1 month and 2 days into the future, by default the expiry date is 3 weeks into the future:
 
 ```
 # ldns-signzone -e $(date -d "1 month 2 days" "+%Y%m%d") std9.os3.su.zone Kstd9.os3.su.+013+59198 Kstd9.os3.su.+013+62425
