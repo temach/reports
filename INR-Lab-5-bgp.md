@@ -6,6 +6,47 @@
 
 ## 1. Preparation
 
+Between the Autonomous Systems, an exterior gateway protocol is used. This can be static routing, EGP (old exterior gateway protocol) or BGP (currently used in the Internet).
+
+Its important to understand that BGP distributes routing information. The routing information is just another packet on the network. The actual data packets do not travel the same paths as the packets that distribute routing information. There is an important distinction between the routes used to distribute routing information and routes for other data packets. 
+
+The schematic for a made up Internet is shown below, the AS are connected by BGP:
+
+![Selection_358](INR-Lab-5-bgp.assets/Selection_358.png)
+
+
+
+Why do we need two routing protocols anyway? Quoting Radia Perlman:
+
+```
+The world would certainly be simpler with a single routing protocol rather than an interdomain one and an intradomain one. To believe that you need two different types of protocols you must believe the following three things.
+
+1. Policy-based routing (choosing paths not based on minimizing a metric but on arbitrary policies) is essential for interdomain routing.
+2. Policy-based routing is never important within a domain.
+3. A routing protocol capable of handling policies would be too inefficient to be an acceptable solution in the simple world where the only policy is to minimize a metric.
+```
+
+BGP significantly extends the distance vector approach. It is also referred to as a `path vector` protocol, because each entry in the distance vector table also contains the sequence of routing domains in the path to the destination. Distributing the sequence of routing domains has two purposes.
+
+1. It solves the counting-to-infinity problem.
+2. It allows policy decisions to be made based on the routing domains in the path (i.e. allows policy-based routing).
+
+Examples of policy routing (taken from Tanenbaum):
+1. Do not carry commercial traffic on the educational network.
+2. Never send traffic from the Pentagon on a route through Iraq.
+3. Use TeliaSonera instead of Verizon because it is cheaper.
+4. Don’t use AT&T in Australia because performance is poor.
+5. Traffic starting or ending at Apple should not transit Google.
+
+For info on how to take a look inside a BGP server (open looking glass server) see: https://gns3vault.com/blog/bgp-for-beginners
+
+The networks may all use different interior gateway protocols, but they must use the same  exterior gateway protocol to form an internet.
+
+
+sources:
+1. Computer Networks - A Tanenbaum - 5th edition
+2. Radia Perlman - Interconnections: Bridges, Routers, Switches, and Internetworking Protocols -Addison-Wesley Professional (1999)
+
 ### a. Select a virtual routing solution that you would like to try. For example (Mikrotik, vyos, Pfsense).
 
 I decided to select MikroTik.
@@ -47,7 +88,7 @@ Pinging Rodrigo's router at `10.1.1.9`
 
 ![routerb_334](INR-Lab-5-bgp.assets/routerb_334.png)
 
-Pinging Kostya's router at `10.1.1.2`
+Pinging Kostya's router at `10.1.1.2` (Kostya was not my teammate, but we were connected to the same network switch):
 
 ![routerb_335](INR-Lab-5-bgp.assets/routerb_335.png)
 
@@ -93,12 +134,12 @@ To configure the area1 on the `routere` I used the commands below:
 
 ![routere_350](INR-Lab-5-bgp.assets/routere_350.png)
 
-Then I configured all three routers to be part of area1 as shown below:
+Then I configured all three routers to know about of area1 as shown below:
 ```
 [admin@MikroTik] > routing ospf network add network=0.0.0.0/0 area=area1
 ```
 
-Then the same area had to be configured on `routerb`.
+Then the appropriate area1 had to be configured on `routerb` which is on the backbone area and is an ABR between area0 and area1.
 
 ### Define an AS number that your ASBR router will use, again agree with the other teams on which AS number each team will use (64512 to 65534)
 
@@ -149,6 +190,12 @@ To check that my network is reachable from Rodrigo's network I asked him to ping
 
 
 
+Below is a screenshot of Rodrigo's topology for reference:
+
+![](INR-Lab-5-bgp.assets/photo_2019-09-24_12-34-10_rodrigo.jpg)
+
+
+
 For this to work I turned on the option to redistribute OSPF routes via BGP as shown below:
 
 ![admin@192.168.122.139 (INR-Lab-5-bgp.assets/admin@192.168.122.139%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_339-1569267883042.png) - WinBox v6.44.2 on CHR (x86_64)_339](../../../Pictures/admin@192.168.122.139%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_339.png)
@@ -157,7 +204,7 @@ For this to work I turned on the option to redistribute OSPF routes via BGP as s
 
 ### d. How can the OSPF Internal router know about your peer’s OSPF Internal router? One way is to redistribute BGP routes into the OSPF routing table, but is this a practical method? why?
 
-I used the option to redistribute BGP routes into OSPF and furthermore the option to redistribute "Other OSPF Router". This option was turend on on `routerb` which is the ASBR.  This is reflected in the OSPF configuration as shown below:
+I used the option to redistribute BGP routes into OSPF and furthermore the option to redistribute "Other OSPF Router". This option was turned on on `routerb` which is the ASBR.  This is reflected in the OSPF configuration as shown below:
 
 ![admin@192.168.122.139 (INR-Lab-5-bgp.assets/admin@192.168.122.139%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_342.png) - WinBox v6.44.2 on CHR (x86_64)_342](../../../Pictures/admin@192.168.122.139%20(MikroTik)%20-%20WinBox%20v6.44.2%20on%20CHR%20(x86_64)_342.png)
 
@@ -234,9 +281,14 @@ Similarly Rustam could see my network and recognize it as a gateway:
 
 ### b. Can the new peer reach your network and your teammate network through you?
 
-Unfortunately Rustam was not available to complete this part of the lab with me, so I continued with Rodrigo.
+Unfortunately Rustam was not available to complete this part of the lab with me, so I continued with Rodrigo. I followed the same steps as with Rustam.
 
-We checked that Rodrigo could ping Ali. Routes were distributed correctly :
+We checked that Rodrigo could ping Ali. Routes were distributed correctly:
 
 ![](INR-Lab-5-bgp.assets/photo_2019-09-24_01-16-54.jpg)
 
+The trace from Rodrigo to Ali is shown below:
+
+![](INR-Lab-5-bgp.assets/photo_2019-09-24_12-39-08_rodri_trace.jpg)
+
+However because we were all connected to one switch (network `10.1.1.1/24`). Even though the routes were distributed via my BGP router, but the actual packets did not travel via my network. If I wanted the packets to be routed via my AS, I would either need my router to sit physically between their AS (which was not happening, because of the switch), or I would have need to have two BGP enabled routers one for Rodrigo one for Ali to "hide" them from each other and force data packets to be routed via my AS.

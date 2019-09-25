@@ -55,7 +55,7 @@ The latest one is dated in 2015 and I was able to retrieve it with HTTPS as show
 
 Using HTTPS means that the integrity is guaranteed while data is transferred from the PGP server to my machine. However it remains to validate the authenticity of the data. In other words we must check if this key actually belongs to Wietse or if someone just uploaded it to the PGP server and supplied `Wietse Venema <wietse@porcupine.org>` as the metadata during the upload (an attacker trying to impersonate Wietse).
 
-In fact after compaing the public key from the MIT PGP server (over HTTPS) with the one availiable from Wietse's website (over HTTP), the keys do NOT match. In other words, one of them is wrong!
+In fact after comparing the public key from the MIT PGP server (over HTTPS) with the one available from Wietse's website (over HTTP), the keys do NOT match. In other words, one of them is wrong!
 
 In order to verify the authenticity of this key, we must build a chain of trust from a known signature that we trust. I do not have a signed public PGP key, so I can not participate in the chain. However suppose I know the public key used by Alice (so I trust it), then Alice has signed Bob's public key (thus Alice vouches that this public key belongs to a human being Bob), then suppose further that Bob used his private key to sign Wietse Venema's public key. This would form a trust chain from Alice to Wietse. Assuming that I have verified Alice's public key, this forms a chain of trust from me to Wietse's public PGP key. In other words this way we would be able to verify Wietse's public key. 
 
@@ -65,7 +65,7 @@ What is left is to find some PGP user that would act as Alice. I.e. a user for w
 
 
 
-Unfortunately after about two hours of trying to find a valid first link I had to give up.  And actually looking at an extract from the build log of how the postfix package gets compiled by the Ubuntu package managers, we can see that they don't care for the signatures either (and its a distribution!) (source: https://launchpadlibrarian.net/441280423/buildlog_ubuntu-eoan-amd64.postfix_3.4.5-1ubuntu1_BUILDING.txt.gz):
+Unfortunately after about two hours of trying to find a valid first link I had to give up. There was no way to find a good first link that I could trust and verify.  And actually looking at an extract from the log file (shown below) of how the postfix package gets compiled for the Ubuntu, we can see that the maintainers do NOT care for the signatures either (and its a distribution!) (source: https://launchpadlibrarian.net/441280423/buildlog_ubuntu-eoan-amd64.postfix_3.4.5-1ubuntu1_BUILDING.txt.gz):
 
 ```
 Unpack source
@@ -145,7 +145,7 @@ The build options are described in `INSTALL` document. In particular it describe
 2.	Send and receive mail via a virtual host interface, still without any change to an existing Sendmail installation.
 3.	Run Postfix instead of Sendmail.
 
-And the various options that can be passed to `make`,.
+And the various options that can be passed to `make`. For this lab the aim is to install it in mode 3.
 
 One way to pass parameters is as shown below:
 
@@ -356,8 +356,9 @@ $ make makefiles CCARGS="-DHAS_PCRE -DHAS_SQLITE -I/usr/include -DHAS_SSL -I/usr
 	AUXLIBS_SQLITE="-lsqlite3 -L../../lib -L. -lpostfix-util -lpostfix-global -lpthread" \
 	shared=yes \
 	daemon_directory=/usr/lib/postfix/sbin \
-	shlibs_directory=/usr/lib/postfix manpage_directory=/usr/share/man \
-	sample_directory=/usr/share/doc/postfix/examples
+	shlibs_directory=/usr/lib/postfix \
+	manpage_directory=/usr/share/man \
+	sample_directory=/usr/share/doc/postfix/examples \
 	readme_directory=/usr/share/doc/postfix \
 	html_directory=/usr/share/doc/postfix/html
 ```
@@ -372,7 +373,6 @@ The syntax and initial config for postfix: http://www.postfix.org/BASIC_CONFIGUR
 The initial configuration file is shown below:
 
 ```
-# See /usr/share/postfix/main.cf.dist for a commented, more complete version
 myorigin = $mydomain
 mydestination = $mydomain, www.$mydomain, mail.$mydomain, lab.$mydomain, $myhostname, artem-209-HP-EliteDesk-800-G1-SFF, localhost.localdomain, localhost
 mynetworks_style = host
@@ -381,13 +381,6 @@ myhostname = mail.std9.os3.su
 inet_interfaces = all
 smtpd_banner = $myhostname ESMTP $mail_name
 biff = no
-# TLS parameters
-# See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for SSL in smtp client
-smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
-smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
-smtpd_use_tls=yes
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 append_dot_mydomain = no
 readme_directory = no
 compatibility_level = 2
@@ -422,8 +415,7 @@ tcp6       0      0 :::25                   :::*                    LISTEN
 tcp6       0      0 ::1:631                 :::*                    LISTEN 
 ```
 
-Then telnet to localhost port 25 to test sending mail to a local user from root (lines prefixed with numbers `250`, `354` are written by postfix, everything is typed by the user).
-Also do not forget the `.` at the end, which indicates end of line:
+Then telnet to localhost port 25 to test sending mail to a local user from root (lines prefixed with numbers, such as `220` or `250` or `354` are returned by postfix mail server, the lines in between are typed by the user). Also do not forget the `.` at the end, which indicates end of the email body:
 ```
 artem@ postfix-3.4.6$ telnet localhost 25
 Trying 127.0.0.1...
@@ -977,7 +969,7 @@ artem@ postfix$ sudo tree
 
 We can see that there are a number of internal queues such as `corrupt`, `flush` and  `bounce` that are not mentioned in the documentation for queues. Their use is pretty obvious from their names: corrupt contains corrupt mail, flush is a temporary queue, and bounce is used for messages that must be relayed to another server.
 
-To work with the queue postfix provides `mailq` ,  `postqueue`, `postdrop` and `qmgr` programs. Note: all postfix commands are prefixed with `post` and commands such as `mailq` and `qmgr` are provided for sendmail compatiability. The commands can be used to produce a listing of the email IDs in the queue, the sizes of the messages, the dates, and the senders and recipients, or to manipulate the queue in other ways.
+To work with the queue postfix provides `mailq` ,  `postqueue`, `postdrop` and `qmgr` programs. Note: all postfix commands are prefixed with `post` and commands such as `mailq` and `qmgr` are provided for sendmail compatibility. The commands can be used to produce a listing of the email IDs in the queue, the sizes of the messages, the dates, and the senders and recipients, or to manipulate the queue in other ways.
 
 
 
@@ -1112,7 +1104,7 @@ $ cat /etc/virtual
 admin@subdom.std9.os3.su    mailman
 ```
 
-This configuration will put all mail that is send to `admin@subdom.std9.os3.su` (which is the default mail specified in the SOA record for `subdom.std9.os3.su`) into the `mailman` inbox. I could have also just created another user such as `admin-subdom`, but this was simpler.
+This configuration will put all mail that is send to `admin@subdom.std9.os3.su` (which is the default mail specified in the SOA record for `subdom.std9.os3.su`) into the `mailman` inbox. I could have also created another user such as `admin-subdom` and used him instead of `mailman` for the configuration above. However reusing the `mailman` user was just simpler.
 
 Refresh postfix configuration:
 
@@ -1133,7 +1125,7 @@ sources:
 ### Validate that you are now receiving emails for both domains
 
 
-Validate the setup by sending an email from gmail:
+Validate the setup by sending an email from gmail to the subdomain:
 ```
 MIME-Version: 1.0
 Date: Sun, 22 Sep 2019 02:56:43 +0300
@@ -1303,13 +1295,17 @@ Does this work?
 
 ### Which one is better, SSL/TLS or STARTTLS, why?
 
+TLS 1.3 is defined in RFC 8446: https://tools.ietf.org/html//rfc8446.html 
+
 STARTTLS for SMTP is defined in RFC 3207:  https://tools.ietf.org/html/rfc3207
-(related documents: RFC2595 and RFC3501). In this scheme, depending on the capabilities of the server/client the client can issue a STARTTLS command, followed by a TLS handshake that can upgrade the connection. (Similar to SMTP - SMTPS, FTP - FTPS, etc.)
+(related documents: RFC2595 and RFC3501). 
 
-TLS 1.3 is defined in RFC 8446: https://tools.ietf.org/html//rfc8446.html requiers that TLS is negotiated immediately at connection start on a separate port. The term "Implicit TLS" is used to contrast the use of TLS on a separate port from STARTTLS.
+The STARTTLS mechanism depends on the capabilities of the server and the client. After the initial connection on port 25 the client can issue a STARTTLS command, followed by a TLS handshake that can upgrade the connection. (Similar to SMTP - SMTPS, FTP - FTPS, etc.)
 
-The main reason why Implicit TLS is better than STARTTLS is because it either guarantees the establishment of an encrypted channel or disallows the connection. STARTTLS on the other hand tries to negotiate an encrypted session and if that fails it allows to fallback to plain-text. 
-Furthermore if encryption is negotiated SMARTTLS allows the use of SSL which has multiple drawbacks. This means that the security with SMARTTLS  is not as clear cut as with Implicit TLS. 
+To keep communication secure requires that TLS is negotiated immediately. That is right at the start of the  connection. For this reason major protocols have a separate port, that is dedicated to establishing secure connections from the very beginning. To contrast the use of this technique vs the STARTTLS mechanism, the term `Implicit TLS` is used.
+
+The main reason why Implicit TLS is better than STARTTLS is because it guarantees that the connection will be established on an encrypted channel or the connection will be forbidden. STARTTLS on the other hand tries to negotiate an encrypted session and if that fails, allows fallback to plain-text connection. 
+Furthermore even if encryption is negotiated, SMARTTLS allows the use of SSL which has multiple drawbacks compared to TLS. Overall this means that the security with SMARTTLS  is not as clear cut as with Implicit TLS. 
 
 Quoting from the RFC 3207:
 ```
@@ -1338,36 +1334,20 @@ source: https://serverfault.com/questions/523804/is-starttls-less-safe-than-tls-
 
 ### Which one is actually in use for SMTP? Any problem there?
 
-SMTP/TLS is offered on port 465 however in practice support for STARTTLS is widespread enougth now that many clients and servers just use the old way of upgrading the connection.
+SMTP/TLS was proposed to be offered on port 465, similar to how HTTPS (HTTP/TLS) is offered on port 443. However, in practice, support for STARTTLS was already widespread enough that many clients and servers just use the old way of upgrading the connection.  
 
-Assuming that the client is responsible and does not start a plain text conversation if the server does not support encryption, furthermore if the client enforces TLS with STARTTLS then the only concern is that the initial communication begins unencrypted allowing for sniffing.
+Assuming that the client acts responsibly (tries to upgrade the connection as soon as possible and forbids fallback to plain-text) and that the server acts responsibly (advocates STARTTLS), then the only difference  between using STARTTLS mechanism vs SMTP/TLS (a.k.a Implicit TLS) is that the initial communication begins unencrypted, which allows for sniffing of the sender's domain.
+
+Therefore today Implicit TLS refers mostly to clients that are submitting/retrieving mail to/from the mail server. 
 
 source: https://stackoverflow.com/questions/803899/how-do-smtp-clients-determine-whether-to-use-explicit-or-implicit-ssl
 
-
 ### Add transport encryption to your MX
 
-Certificates were generated with  `postfix tls new-server-cert`  and added to the configuration as shown below:
-
-```
-# TLS parameters
-# See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for SSL in smtp client
-smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
-smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
-smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
-smtpd_tls_security_level = may
-smtpd_tls_loglevel = 1
-
-smtp_tls_session_cache_database = btree:/var/lib/postfix/smtp_scache
-smtp_tls_security_level = may
-smtp_tls_loglevel = 1
-
-tls_random_source = dev:/dev/urandom
-```
+The first was adding opportunistic encryption (i.e. use it only if both the server and the client support it).
 
 
-
-Before encryption was enabled sending mail from std9.os3.su to a gmail account looked as below:
+Before encryption was enabled, sending mail from std9.os3.su to a gmail account looked as below:
 
 ![Selection_322](FIA-Lab-5-mail.assets/Selection_322.png)
 
@@ -1398,6 +1378,24 @@ postfix/postfix-tls-script:   https://tools.ietf.org/html/rfc7671#section-8
 postfix/postfix-tls-script:   https://tools.ietf.org/html/rfc7671#section-5.1
 postfix/postfix-tls-script:   https://tools.ietf.org/html/rfc7671#section-5.2
 postfix/postfix-tls-script:   https://community.letsencrypt.org/t/please-avoid-3-0-1-and-3-0-2-dane-tlsa-records-with-le-certificates/7022
+```
+
+Certificates were generated with  `postfix tls new-server-cert`  and added to the configuration `/etc/postfix/main.cfg` as shown below:
+
+```
+# TLS parameters
+# See TLS_README for SSL in smtp
+smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+smtpd_tls_security_level = may
+smtpd_tls_loglevel = 1
+
+smtp_tls_session_cache_database = btree:/var/lib/postfix/smtp_scache
+smtp_tls_security_level = may
+smtp_tls_loglevel = 1
+
+tls_random_source = dev:/dev/urandom
 ```
 
 Reload postfix with:
@@ -1449,11 +1447,348 @@ Indeed encryption is present!
 
 
 
+However note that in this case the interaction between the MUA (telnet) and the postfix server was NOT encrypted. This is ok, because the localhost interface was used.
+
 source: http://www.postfix.org/TLS_README.html
 
 ### Eventually force the transport to be encrypted only (refuse non encrypted transport)
 
-Note that requiring clients to use TLS encryption is breaking RFC 2487 http://www.postfix.org/postconf.5.html#smtpd_tls_security_level.
+Note that RFC 3207 (published in 2002) states that:
+```
+A publicly-referenced SMTP server MUST NOT require use of the
+STARTTLS extension in order to deliver mail locally. This rule
+prevents the STARTTLS extension from damaging the interoperability of
+the Internet's SMTP infrastructure.  
+```
+
+This is also mentioned in postfix configuration manual: http://www.postfix.org/postconf.5.html#smtpd_tls_security_level.
+
+However the more recent RFC 8314 (published in 2018) that was already discussed above, specifically advises using Implicit TLS between MUA and mail server.
+
+To force encryption (but there is NO authentication performed) the postfix configuration must be changed with the following config:
+```
+smtpd_tls_security_level = encrypt
+smtp_tls_security_level = encrypt
+```
+
+The full config is shown below:
+
+```
+$ cat /etc/postfix/main.cf
+myorigin = $mydomain
+mydestination = $mydomain, www.$mydomain, mail.$mydomain, lab.$mydomain, $myhostname, artem-209-HP-EliteDesk-800-G1-SFF, localhost.localdomain, localhost
+mynetworks_style = host
+relayhost = 
+myhostname = mail.std9.os3.su
+inet_interfaces = all
+smtpd_banner = $myhostname ESMTP $mail_name
+biff = no
+# TLS parameters
+# See TLS_README for SSL in smtp
+smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+smtpd_tls_session_cache_database = btree:${data_directory}/smtpd_scache
+smtpd_tls_security_level = encrypt
+smtpd_tls_loglevel = 1
+
+smtp_tls_session_cache_database = btree:/var/lib/postfix/smtp_scache
+smtp_tls_security_level = encrypt
+smtp_tls_loglevel = 1
+
+tls_random_source = dev:/dev/urandom
+
+append_dot_mydomain = no
+readme_directory = no
+compatibility_level = 2
+smtpd_relay_restrictions = permit_mynetworks permit_sasl_authenticated defer_unauth_destination
+virtual_alias_maps = hash:/etc/virtual
+virtual_alias_domains = subdom.std9.os3.su
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+mailbox_size_limit = 0
+recipient_delimiter = +
+inet_protocols = all
+```
+
+Reload postfix with:
+
+```
+$ sudo postfix reload
+```
+
+
+
+### Proceed with validation (proof or acceptance testing ), as usual.
+
+Test that the server now refuses to communicate until the client sends  a STARTTLS command (even though this is localhost): 
+```
+artem@ ~$ telnet localhost 25
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+220 mail.std9.os3.su ESMTP Postfix
+ehlo std9.os3.su
+250-mail.std9.os3.su
+250-PIPELINING
+250-SIZE 10240000
+250-VRFY
+250-ETRN
+250-STARTTLS
+250-ENHANCEDSTATUSCODES
+250-8BITMIME
+250-DSN
+250 SMTPUTF8
+mail to: tematibr@gmail.com
+530 5.7.0 Must issue a STARTTLS command first
+mail from: artem@std9.os3.su
+530 5.7.0 Must issue a STARTTLS command first
+^]
+telnet> q
+Connection closed.
+```
+
+However when trying to start a TLS session in telnet, the connection is abruptly terminated by the server (because `telnet` does not support encryption). This is shown below:
+```
+artem@ ~$ telnet localhost 25
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+220 mail.std9.os3.su ESMTP Postfix
+ehlo std9.os3.su
+250-mail.std9.os3.su
+250-PIPELINING
+250-SIZE 10240000
+250-VRFY
+250-ETRN
+250-STARTTLS
+250-ENHANCEDSTATUSCODES
+250-8BITMIME
+250-DSN
+250 SMTPUTF8
+STARTTLS
+220 2.0.0 Ready to start TLS
+mail from: artem@std9.os3.su
+Connection closed by foreign host.
+```
+
+To debug, test and verify postfix mail see the official debugging tips: http://www.postfix.org/ADDRESS_REWRITING_README.html#debugging
+
+Therefore to test sending and receiving mail I will use another MUA that supports TLS. Unfortunately finding an adequate MUA proved more of a challenge than expected.
+1.	sendmail had some issue with TLS that I did not manage to resolve
+2.	mailx (from `mailutils` package) was painful to use after the simplicity of telnet
+3.	Thunderbird requiered that either IMAP or POP3 be configured. This meant installing and configuring yet another server to serve IMAP/POP3 such as Dovecot. I did not like this complexity.
+
+Finally I remembered about the excellent `smtplib` supplied with python3. The script below replaces telnet and provides the necessary STARTTLS support:
+```python
+import smtplib
+
+def prompt(prompt):
+    return input(prompt).strip()
+
+fromaddr = prompt("From: ")
+toaddrs  = prompt("To: ").split()
+print("Enter message, end with ^D:")
+
+# Add the From: and To: headers at the start!
+msg = ("From: %s\r\nTo: %s\r\n\r\n"
+       % (fromaddr, ", ".join(toaddrs)))
+while True:
+    try:
+        line = input()
+    except EOFError:
+        break
+    if not line:
+        break
+    msg = msg + line
+
+print("Message length is", len(msg))
+
+server = smtplib.SMTP('mail.std9.os3.su')
+server.set_debuglevel(2)
+server.ehlo()
+server.starttls()
+server.sendmail(fromaddr, toaddrs, msg)
+server.quit()
+```
+
+The original script is taken from the python docs for `smtplib` and slightly modified by me.
+source: https://docs.python.org/3/library/smtplib.html
+
+Below is a session sending email from std9.os3.su to my gmail account:
+
+```
+artem@ ~$ python3 mailsubmit.py 
+From: admin@mail.std9.os3.su 
+To: tematibr@gmail.com
+Enter message, end with ^D:
+Subject: Testing TSL encryption all the way!
+
+Message length is 100
+send: 'ehlo [127.0.1.1]\r\n'
+reply: b'250-mail.std9.os3.su\r\n'
+reply: b'250-PIPELINING\r\n'
+reply: b'250-SIZE 10240000\r\n'
+reply: b'250-VRFY\r\n'
+reply: b'250-ETRN\r\n'
+reply: b'250-STARTTLS\r\n'
+reply: b'250-ENHANCEDSTATUSCODES\r\n'
+reply: b'250-8BITMIME\r\n'
+reply: b'250-DSN\r\n'
+reply: b'250 SMTPUTF8\r\n'
+reply: retcode (250); Msg: b'mail.std9.os3.su\nPIPELINING\nSIZE 10240000\nVRFY\nETRN\nSTARTTLS\nENHANCEDSTATUSCODES\n8BITMIME\nDSN\nSMTPUTF8'
+send: 'STARTTLS\r\n'
+reply: b'220 2.0.0 Ready to start TLS\r\n'
+reply: retcode (220); Msg: b'2.0.0 Ready to start TLS'
+send: 'ehlo [127.0.1.1]\r\n'
+reply: b'250-mail.std9.os3.su\r\n'
+reply: b'250-PIPELINING\r\n'
+reply: b'250-SIZE 10240000\r\n'
+reply: b'250-VRFY\r\n'
+reply: b'250-ETRN\r\n'
+reply: b'250-ENHANCEDSTATUSCODES\r\n'
+reply: b'250-8BITMIME\r\n'
+reply: b'250-DSN\r\n'
+reply: b'250 SMTPUTF8\r\n'
+reply: retcode (250); Msg: b'mail.std9.os3.su\nPIPELINING\nSIZE 10240000\nVRFY\nETRN\nENHANCEDSTATUSCODES\n8BITMIME\nDSN\nSMTPUTF8'
+send: 'mail FROM:<admin@mail.std9.os3.su> size=100\r\n'
+reply: b'250 2.1.0 Ok\r\n'
+reply: retcode (250); Msg: b'2.1.0 Ok'
+send: 'rcpt TO:<tematibr@gmail.com>\r\n'
+reply: b'250 2.1.5 Ok\r\n'
+reply: retcode (250); Msg: b'2.1.5 Ok'
+send: 'data\r\n'
+reply: b'354 End data with <CR><LF>.<CR><LF>\r\n'
+reply: retcode (354); Msg: b'End data with <CR><LF>.<CR><LF>'
+data: (354, b'End data with <CR><LF>.<CR><LF>')
+send: b'From: admin@mail.std9.os3.su\r\nTo: tematibr@gmail.com\r\n\r\nSubject: Testing TSL encryption all the way!\r\n.\r\n'
+reply: b'250 2.0.0 Ok: queued as E1E78B61492\r\n'
+reply: retcode (250); Msg: b'2.0.0 Ok: queued as E1E78B61492'
+data: (250, b'2.0.0 Ok: queued as E1E78B61492')
+send: 'quit\r\n'
+reply: b'221 2.0.0 Bye\r\n'
+reply: retcode (221); Msg: b'2.0.0 Bye'
+```
+
+The resulting email in my gmail account is shown below:
+
+![Selection_360](FIA-Lab-5-mail.assets/Selection_360.png)
+
+
+
+The raw data received by gmail is below:
+
+```
+Delivered-To: tematibr@gmail.com
+Received: by 2002:ac2:515c:0:0:0:0:0 with SMTP id q28csp1242130lfd;
+        Wed, 25 Sep 2019 14:13:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwzg7ZSy911SvMHVHiNOeY2O0Ic5fnclffbf0MEeUKja/jf73nPdKt1NtoC1QJ7miwQ4LoE
+X-Received: by 2002:a19:6549:: with SMTP id c9mr25894lfj.99.1569446014322;
+        Wed, 25 Sep 2019 14:13:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1569446014; cv=none;
+        d=google.com; s=arc-20160816;
+        b=WeX+mq1IhoWujpyiaWlMHhi9ipUTFXqOcogWf/1UYjVWlmIOzNz1e2xxyFnJECkJTG
+         A2307C4LdcIhG9ghkxqONxuY69dzS+HYvtAmSjjM8KvvPZ6mhPzkNNHRK5cLcOLUXcfH
+         Pw3mjv3L7xnP44qhl07cAodN3Cnt4m1kLU/DK9J/kFFvheSEweZvl7o9H9kv/41P+E0O
+         PKnlJteKm7qQv1Ox8Zt5Xr8hrmuwQxSbI+UcaKal5oK/xRky9awyeLU/I7X/Zuu16/zO
+         EuddycMXMJdZ+cbTNmS9fNTHqhZilZMaGH3eroVyM2+7Ueu0OQkxUVh1RF2DhV1Y/Sa3
+         d+GA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=date:message-id:to:from;
+        bh=2QeYaY3Oj+LXAlCvyU4LUeLSjavARD/dzQC7VgbU1V0=;
+        b=wvaDBAOvniD3KAn7OH1xkpZFGv62FoZQgHbuJrNW4WA0MCUHaZrD9WM6y+1TWVd/H+
+         rR8m41961rbvurCBAEXN6hhLlJcrN8TTD5mdp/FM9P6Br5XBk/Me+pHkZ9toSU3dqPID
+         nu2d7Hm6VorPhTAWFRWvaijG2yRUoYpAWLfQn0q52b4dxSeH5Uopu/s0q61Tzs1k6lZb
+         2SDXdneYW8nMuzEp6WstqeHo6a/oxg8REfInlaOVbPhCAtF9CmRjeiVCE28gXpVeSLOz
+         8OGeiGD98KN0m+dHkJs2LLPqrwm2Ht/W5gnez18k0V4TljR0lzBeoMnQtrQhsy18RA0f
+         ztdg==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=neutral (google.com: 188.130.155.42 is neither permitted nor denied by best guess record for domain of admin@mail.std9.os3.su) smtp.mailfrom=admin@mail.std9.os3.su
+Return-Path: <admin@mail.std9.os3.su>
+Received: from mail.std9.os3.su ([188.130.155.42])
+        by mx.google.com with ESMTPS id q30si58484lfd.108.2019.09.25.14.13.33
+        for <tematibr@gmail.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Wed, 25 Sep 2019 14:13:33 -0700 (PDT)
+Received-SPF: neutral (google.com: 188.130.155.42 is neither permitted nor denied by best guess record for domain of admin@mail.std9.os3.su) client-ip=188.130.155.42;
+Authentication-Results: mx.google.com;
+       spf=neutral (google.com: 188.130.155.42 is neither permitted nor denied by best guess record for domain of admin@mail.std9.os3.su) smtp.mailfrom=admin@mail.std9.os3.su
+Received: from [127.0.1.1] (unknown [188.130.155.42]) by mail.std9.os3.su (Postfix) with ESMTPS id E1E78B61492 for <tematibr@gmail.com>; Thu, 26 Sep 2019 00:13:32 +0300 (MSK)
+From: admin@mail.std9.os3.su
+To: tematibr@gmail.com
+Message-Id: <20190925211332.E1E78B61492@mail.std9.os3.su>
+Date: Thu, 26 Sep 2019 00:13:32 +0300 (MSK)
+
+Subject: Testing TSL encryption all the way!
+```
+
+
+
+Now lets verify that the TLS is enforced, comment the `server.starttls()` call in the python script and run again as shown below:
+
+```
+artem@ ~$ python3 mailsubmit.py 
+From: admin@mail.std9.os3.su
+To: tematibr@gmail.com
+Enter message, end with ^D:
+Subject: hello admin!
+
+Message length is 77
+send: 'ehlo [127.0.1.1]\r\n'
+reply: b'250-mail.std9.os3.su\r\n'
+reply: b'250-PIPELINING\r\n'
+reply: b'250-SIZE 10240000\r\n'
+reply: b'250-VRFY\r\n'
+reply: b'250-ETRN\r\n'
+reply: b'250-STARTTLS\r\n'
+reply: b'250-ENHANCEDSTATUSCODES\r\n'
+reply: b'250-8BITMIME\r\n'
+reply: b'250-DSN\r\n'
+reply: b'250 SMTPUTF8\r\n'
+reply: retcode (250); Msg: b'mail.std9.os3.su\nPIPELINING\nSIZE 10240000\nVRFY\nETRN\nSTARTTLS\nENHANCEDSTATUSCODES\n8BITMIME\nDSN\nSMTPUTF8'
+send: 'mail FROM:<admin@mail.std9.os3.su> size=77\r\n'
+reply: b'530 5.7.0 Must issue a STARTTLS command first\r\n'
+reply: retcode (530); Msg: b'5.7.0 Must issue a STARTTLS command first'
+send: 'rset\r\n'
+reply: b'530 5.7.0 Must issue a STARTTLS command first\r\n'
+reply: retcode (530); Msg: b'5.7.0 Must issue a STARTTLS command first'
+Traceback (most recent call last):
+  File "mailsubmit.py", line 28, in <module>
+    server.sendmail(fromaddr, toaddrs, msg)
+  File "/usr/lib/python3.6/smtplib.py", line 867, in sendmail
+    raise SMTPSenderRefused(code, resp, from_addr)
+smtplib.SMTPSenderRefused: (530, b'5.7.0 Must issue a STARTTLS command first', 'admin@mail.std9.os3.su')
+```
+
+Indeed, the client gets rejected.
+
+
+
+source: https://serverfault.com/questions/971517/postfix-combinations-of-tls-starttls-and-ports-465-587
+
+
+
+## Task 6 - SPF & DKIM
+
+Both SPF and DKIM try to provide authentication for emails. 
+
+SPF to allow checking the path of the email, in particular the origin. . SPF uses DNS to publish a record of all mail transfer authorities (MTA) authorized to send mail on behalf of the domain. Recipient
+
+
+
+SPF helps to prevent
+
+
+
+DKIM is based around signing the email and providing the public key via DNS
+
+
+
+Overview of security mechanisms: https://www.uriports.com/blog/email-security-explained/
+
+## Appendix
+
+** DANE**
+
 
 DANE allows to generate a self-signed certificate that would be verifiable by third parties. This is done by putting the hash of the certificate on the DNS server that is DNSSEC enabled and that is responsible for the domain. To quote RFC 6689 which defines DANE:
 
@@ -1466,26 +1801,9 @@ This allows remote parties that are connecting to the server to verify the authe
 Below is the certificate generate for the server: https://www.huque.com/bin/gen_tlsa
 
 
-
 source: https://kostikov.co/tehnologiya-dane-bezopasnostj-cherez-dns
 
-### Proceed with validation (proof or acceptance testing ), as usual.
 
-
-
-
-
-## Task 6 - SPF & DKIM
-
-
-
-
-
-
-
-## Appendix
-
-** DANE**
 
 While doing task 5 at first I though that the task asked for encryption AND authentication. Which is an interesting question, of how can clients of my postfix server verify its authenticity.
 
@@ -1642,3 +1960,5 @@ LV7Xq47alFBvD8nLARX9mqLFXjaiMNLPihX/Oo3AJd+kXuDeJz6igUsf9UeIcbRc
 1KJj8WrPtP2Xvq/dixvp08ui
 -----END CERTIFICATE-----
 ```
+
+
