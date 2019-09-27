@@ -1759,7 +1759,7 @@ Traceback (most recent call last):
 smtplib.SMTPSenderRefused: (530, b'5.7.0 Must issue a STARTTLS command first', 'admin@mail.std9.os3.su')
 ```
 
-Indeed, the client gets rejected.
+Indeed, the client gets rejected by the postfix server.
 
 
 
@@ -1769,28 +1769,291 @@ source: https://serverfault.com/questions/971517/postfix-combinations-of-tls-sta
 
 ## Task 6 - SPF & DKIM
 
-Both SPF and DKIM try to provide authentication for emails. 
+Both SPF and DKIM are mechanisms to provide authentication for emails. 
 
-SPF to allow checking the path of the email, in particular the origin. . SPF uses DNS to publish a record of all mail transfer authorities (MTA) authorized to send mail on behalf of the domain. Recipient
+SPF addresses the problem that existing protocols place no restriction on how the sending server defines the return-path of the message. Furthermore the domain that gets passed to the SMTP EHLO command can also be anything the sending server wishes, because it is not verified. To solve this SPF allows domain owners to advertise the list of IP addresses that can send email from the domain. You do not have to use any additional software to publish the SPF policy and therefore this procedure is extremely simple: add a single TXT record containing the policy to the DNS zone. The receiving server can discover the domain of the sender (by looking at the `Return-Path`  of the email and extracting the domain), then the receiving server can query the TXT record with SPF information from the master DNS server for that domain. The last step is parsing SPF information to check if the sender's IP address is listed there. If it is listed, then email passes SPF verification. However SPF makes no effort for verify  the `From` field (that must be handled with DMARC). Finally, even if a message fails SPF check, it might still get delivered. The specification is not strict and not perfect, thus some providers choose to deliver email anyway. 
+
+DKIM is based around signing the email (not encrypting it) and providing the public key via DNS. This can verify that the message was not altered during transit, furthermore because the email signature can be verified by a single public key, it allows to verify the authenticity of the email.  Because each sender can be uniquely identified theoretically the ISPs can use your email statistics to build a reputation for your domain. If the postmaster follows the best practices: low spam and bounces, this can help improve trust with the ISPs. The downside is that the DNS must be kept in sync with the keys, especially if there are multiple mail servers (in an organization).
+
+Neither DKIM and SPF provide encryption. Both should be implemented together with DNSSEC, otherwise DNS records can be forged (SPF records that declare authorized servers and DKIM records that declare the public key).
+
+Short overview of SPF is below:
+
+![Selection_361](FIA-Lab-5-mail.assets/Selection_361.png)
 
 
 
-SPF helps to prevent
+sources:
+
+1. Short overview of email security mechanisms: https://www.uriports.com/blog/email-security-explained/
+2. https://hackernoon.com/myths-and-legends-of-spf-d17919a9e817
+3. https://security.stackexchange.com/questions/218140/why-do-we-need-dkim-to-be-used-along-with-s-mime
 
 
 
-DKIM is based around signing the email and providing the public key via DNS
+**What would you choose at a first glance and why?**
+
+I would choose DKIM. SPF seems to be a very rudimentary security mechanism. It does not protect the `From` field which is what the end user actually sees. It is not clear how would it protect against simple IP spoofing, because SPF provides no way to verify integrity.
 
 
 
-Overview of security mechanisms: https://www.uriports.com/blog/email-security-explained/
+**Implementing DKIM**
+
+Install DKIM tools:
+
+```
+$ sudo apt-get install opendkim opendkim-tools
+```
+
+Currently postfix encrypts the emails according to the configuration extract below:
+```
+smtpd_tls_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+smtpd_tls_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+smtpd_tls_security_level = encrypt
+```
+It uses the private key at `/etc/ssl/private/ssl-cert-snakeoil.key` and the certificate `/etc/ssl/certs/ssl-cert-snakeoil.pem`. 
+
+Postfix works with OpenDKIM via the `milter` (mail filter) protocol ( http://www.postfix.org/MILTER_README.html). Postfix submits mail to the email filter before actually queing it. Postfix also has a `Before-Queue` content filter described here (http://www.postfix.org/SMTPD_PROXY_README.html), but for this task I used the `milter` approach.
+
+To simplify the setup I will generate a separate key to be used with OpenDKIM. The details of 
+key management for OpenDKIM are described in `/etc/dkimkeys/README.PrivateKeys` after installing the package from the repository. 
+
+Key generation is shown below:
+```
+# cd /etc/dkimkeys
+# opendkim-genkey -t -s mail -d std9.os3.su
+```
+
+The two  resulting files are shown below:
+```
+# ll
+total 28
+drwx------   2 opendkim opendkim  4096 Sep 27 06:43 ./
+drwxr-xr-x 154 root     root     12288 Sep 27 06:32 ../
+-rw-------   1 root     root      1679 Sep 27 06:43 mail.private
+-rw-------   1 root     root       506 Sep 27 06:43 mail.txt
+-rw-r--r--   1 root     root       664 Nov  7  2015 README.PrivateKeys
+```
+
+The mail.txt contains the record that should be added to the DNS zone. This will be setup later.
+
+Edit the configuration in `/etc/opendkim.conf` as shown below:
+```
+Syslog					yes
+UMask					007
+Domain					std9.os3.su
+KeyFile					/etc/dkimkeys/mail.private
+Selector				mail
+Socket                  inet:8891@localhost
+PidFile               	/var/run/opendkim/opendkim.pid
+OversignHeaders			From
+TrustAnchorFile       	/usr/share/dns/root.key
+UserID                	opendkim
+```
+
+Its interesting that `OpenDKIM` package uses `unbound` to verify the DNS response according to the DNSSEC. 
+
+Must also edit the `/etc/default/opendkim`, because it confusingly specifies default values the OVERRIDE what is provided in the `/etc/opendkim.conf`
+
+The resulting `/etc/default/opendkim` is shown below:
+
+```
+# Command-line options specified here will override the contents of
+# /etc/opendkim.conf. See opendkim(8) for a complete list of options.
+#DAEMON_OPTS=""
+# Change to /var/spool/postfix/var/run/opendkim to use a Unix socket with
+# postfix in a chroot:
+#RUNDIR=/var/spool/postfix/var/run/opendkim
+RUNDIR=/var/run/opendkim
+#
+# Uncomment to specify an alternate socket
+# Note that setting this will override any Socket value in opendkim.conf
+# default:
+#SOCKET=local:$RUNDIR/opendkim.sock
+# listen on all interfaces on port 54321:
+#SOCKET=inet:54321
+# listen on loopback on port 12345:
+#SOCKET=inet:12345@localhost
+# listen on 192.0.2.1 on port 12345:
+#SOCKET=inet:12345@192.0.2.1
+USER=opendkim
+GROUP=opendkim
+PIDFILE=$RUNDIR/$NAME.pid
+EXTRAAFTER=
+```
+
+Alter postfix configuration by adding the following to `/etc/postfix/main.cf`:
+
+```
+smtpd_milters = inet:localhost:8891
+non_smtpd_milters = $smtpd_milters
+milter_default_action = accept
+```
+
+Note to pay extra attention to the `milter_protocol` variable, I omitted it (i.e. used the default) and it worked, but check the documentation here: http://www.postfix.org/MILTER_README.html
+
+To setup the DNS records view content of mail.txt created when generating DKIM key:
+```
+# cat mail.txt 
+mail._domainkey	IN	TXT	( "v=DKIM1; h=sha256; k=rsa; t=y; "
+	  "p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx3I/m/OcpD5i9dd1cfoFugnVKEuJD3e+BF/nx1bx3s5HPZ9rWFzeT+sllPnE2vaGoB3RRVyB4l9F7pm/UP5ivlDeH8sIvercqwMEDY8TvqJS7Wa8xH8wJHEQ2sGZ0YxGOEzAa76T2tF16cf/V++x0Snzzak1q8A1xt2MGlCEnAOS5Vh0lBtykHg2oihwl+yFtwa93w/xzPeRjB"
+	  "G5y0ddK10aURWeQMgAVnAf/7bqA7YkujyOVQuHRx1XtNkZe+IZxhTVhFMS2ii/UZrvo+Fbo92B98OConORmyJwrWt6jul0Th9AFdB3LMRhhv72y7g5mpwDFT08eqjqABSIWb/WTwIDAQAB" )  ; ----- DKIM key mail for std9.os3.su
+```
+
+To modify the DNS records follow the same steps that were used to add and re-sign the record when adding a subdomain for email in Task 4 of this lab.
+
+Edit existing `std9.os3.su.zone.signed` to add the record to the end. Then update the serial number and check format with:
+
+```
+# ldns-read-zone -S YYYYMMDDxx std9.os3.su.zone.signed > std9.os3.su.zone
+```
+
+Check the contents:
+```
+# cat std9.os3.su.zone
+std9.os3.su.	3600	IN	SOA	ns0.std9.os3.su. admin.std9.os3.su. 2019092701 10800 3600 604800 38400
+www.std9.os3.su.	3600	IN	CNAME	notes.std9.os3.su.
+tst.std9.os3.su.	3600	IN	AAAA	2400:6180:100:d0::8c4:9001
+tst.std9.os3.su.	3600	IN	A	68.183.92.166
+subdom.std9.os3.su.	3600	IN	NS	ns0.std9.os3.su.
+mail._domainkey.std9.os3.su.	3600	IN	TXT	"v=DKIM1; h=sha256; k=rsa; t=y; " "p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx3I/m/OcpD5i9dd1cfoFugnVKEuJD3e+BF/nx1bx3s5HPZ9rWFzeT+sllPnE2vaGoB3RRVyB4l9F7pm/UP5ivlDeH8sIvercqwMEDY8TvqJS7Wa8xH8wJHEQ2sGZ0YxGOEzAa76T2tF16cf/V++x0Snzzak1q8A1xt2MGlCEnAOS5Vh0lBtykHg2oihwl+yFtwa93w/xzPeRjB" "G5y0ddK10aURWeQMgAVnAf/7bqA7YkujyOVQuHRx1XtNkZe+IZxhTVhFMS2ii/UZrvo+Fbo92B98OConORmyJwrWt6jul0Th9AFdB3LMRhhv72y7g5mpwDFT08eqjqABSIWb/WTwIDAQAB"
+ns0.std9.os3.su.	3600	IN	A	188.130.155.42
+notes.std9.os3.su.	3600	IN	CNAME	temach.github.io.
+_25._tcp.mail.std9.os3.su.	3600	IN	TLSA	3 0 1 dd1a910a046a841b553f0bc42d7789554e1679a2307f367aa5685eb3dc72180f
+mail.std9.os3.su.	3600	IN	A	188.130.155.42
+lab.std9.os3.su.	3600	IN	A	188.130.155.42
+ansible.std9.os3.su.	3600	IN	AAAA	2a00:b700::6:220
+ansible.std9.os3.su.	3600	IN	A	185.22.153.49
+_25._tcp.std9.os3.su.	3600	IN	TLSA	3 0 1 dd1a910a046a841b553f0bc42d7789554e1679a2307f367aa5685eb3dc72180f
+std9.os3.su.	3600	IN	DNSKEY	257 3 13 ZP8yUKKmSdi8H03m2Pzynh8nTyis1LV72Bmf+ZBbdS0/bBoVIVIBEJ3uYPGMoOlu7kbybMNfLRW1kKRvb6Gv5g== ;{id = 59198 (ksk), size = 256b}
+std9.os3.su.	3600	IN	DNSKEY	256 3 13 tMVV1aZA+72bTZUh53xB12Xl/dsxcGR5W/aIeZ3+rzSceq3WT88CitEzzcaC8dwcJ2jtZlFXmDRGnf55f6RgVw== ;{id = 62425 (zsk), size = 256b}
+std9.os3.su.	3600	IN	MX	10 mail.std9.os3.su.
+std9.os3.su.	3600	IN	NS	ns0.std9.os3.su.
+```
+
+Sign the zone again:
+```
+# ldns-signzone -e $(date -d "1 month 2 days" "+%Y%m%d") std9.os3.su.zone Kstd9.os3.su.+013+59198 Kstd9.os3.su.+013+62425
+```
+
+Check that new records were added (extract from the signed zone file):
+```
+mail._domainkey.std9.os3.su.	3600	IN	TXT	"v=DKIM1; h=sha256; k=rsa; t=y; " "p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx3I/m/OcpD5i9dd1cfoFugnVKEuJD3e+BF/nx1bx3s5HPZ9rWFzeT+sllPnE2vaGoB3RRVyB4l9F7pm/UP5ivlDeH8sIvercqwMEDY8TvqJS7Wa8xH8wJHEQ2sGZ0YxGOEzAa76T2tF16cf/V++x0Snzzak1q8A1xt2MGlCEnAOS5Vh0lBtykHg2oihwl+yFtwa93w/xzPeRjB" "G5y0ddK10aURWeQMgAVnAf/7bqA7YkujyOVQuHRx1XtNkZe+IZxhTVhFMS2ii/UZrvo+Fbo92B98OConORmyJwrWt6jul0Th9AFdB3LMRhhv72y7g5mpwDFT08eqjqABSIWb/WTwIDAQAB"
+mail._domainkey.std9.os3.su.	3600	IN	RRSIG	TXT 13 5 3600 20191029000000 20190927035909 62425 std9.os3.su. IiuHWz9wF7kq0U2yFqKan77yXDhBzlbiUL4R1SVuwoggzs7FNcQlWwZUn6M8gLBR+y1AoS5eQO8jLpbfiByXdQ==
+mail._domainkey.std9.os3.su.	38400	IN	NSEC	_25._tcp.std9.os3.su. TXT RRSIG NSEC 
+mail._domainkey.std9.os3.su.	38400	IN	RRSIG	NSEC 13 5 38400 20191029000000 20190927035909 62425 std9.os3.su. 5vN7gWZDHeUqUDYZ5/XIUY+gTIIX2J+CXF6YOTNcrAQ0rTygEoJaLhz7V5xOQAUVEOPnCHV9kJj7r9VD+tX56A==
+```
+
+
+Restart NSD.  Check records:
+```
+$ dig txt +dnssec mail._domainkey.std9.os3.su.
+
+; <<>> DiG 9.11.3-1ubuntu1.8-Ubuntu <<>> txt +dnssec mail._domainkey.std9.os3.su.
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 34352
+;; flags: qr rd ra ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+;; OPT PSEUDOSECTION:
+; EDNS: version: 0, flags: do; udp: 512
+;; QUESTION SECTION:
+;mail._domainkey.std9.os3.su.	IN	TXT
+
+;; ANSWER SECTION:
+mail._domainkey.std9.os3.su. 3599 IN	TXT	"v=DKIM1; h=sha256; k=rsa; t=y; " "p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx3I/m/OcpD5i9dd1cfoFugnVKEuJD3e+BF/nx1bx3s5HPZ9rWFzeT+sllPnE2vaGoB3RRVyB4l9F7pm/UP5ivlDeH8sIvercqwMEDY8TvqJS7Wa8xH8wJHEQ2sGZ0YxGOEzAa76T2tF16cf/V++x0Snzzak1q8A1xt2MGlCEnAOS5Vh0lBtykHg2oihwl+yFtwa93w/xzPeRjB" "G5y0ddK10aURWeQMgAVnAf/7bqA7YkujyOVQuHRx1XtNkZe+IZxhTVhFMS2ii/UZrvo+Fbo92B98OConORmyJwrWt6jul0Th9AFdB3LMRhhv72y7g5mpwDFT08eqjqABSIWb/WTwIDAQAB"
+mail._domainkey.std9.os3.su. 3599 IN	RRSIG	TXT 13 5 3600 20191029000000 20190927035909 62425 std9.os3.su. IiuHWz9wF7kq0U2yFqKan77yXDhBzlbiUL4R1SVuwoggzs7FNcQlWwZU n6M8gLBR+y1AoS5eQO8jLpbfiByXdQ==
+
+;; Query time: 64 msec
+;; SERVER: 8.8.8.8#53(8.8.8.8)
+;; WHEN: Fri Sep 27 07:07:18 MSK 2019
+;; MSG SIZE  rcvd: 603
+```
+
+Finally start dkim and restart postfix:
+```
+systemctl restart opendkim
+sudo postfix reload 
+```
+
+To test this setup the python script was insufficient. I decided to use `swaks` which is a great tool for testing mail servers. 
+1. Official documentation: https://www.jetmore.org/john/code/swaks/latest/doc/ref.txt
+2. https://easyengine.io/tutorials/mail/swaks-smtp-test-tool/
+
+**TODO verification**
+
+Sending email to gmail with swaks is shown below:
+
+```
+$ swaks --to tematibr@gmail.com --protocol ESMTPS --from admin@std9.os3.su --ehlo mail.std9.os3.su --server mail.std9.os3.su
+=== Trying mail.std9.os3.su:25...
+=== Connected to mail.std9.os3.su.
+<-  220 mail.std9.os3.su ESMTP Postfix
+ -> EHLO mail.std9.os3.su
+<-  250-mail.std9.os3.su
+<-  250-PIPELINING
+<-  250-SIZE 10240000
+<-  250-VRFY
+<-  250-ETRN
+<-  250-STARTTLS
+<-  250-ENHANCEDSTATUSCODES
+<-  250-8BITMIME
+<-  250-DSN
+<-  250 SMTPUTF8
+ -> STARTTLS
+<-  220 2.0.0 Ready to start TLS
+=== TLS started with cipher UNKNOWN(0x0304):TLS_AES_256_GCM_SHA384:256
+=== TLS no local certificate set
+=== TLS peer DN="/CN=ubuntu"
+ ~> EHLO mail.std9.os3.su
+<~  250-mail.std9.os3.su
+<~  250-PIPELINING
+<~  250-SIZE 10240000
+<~  250-VRFY
+<~  250-ETRN
+<~  250-ENHANCEDSTATUSCODES
+<~  250-8BITMIME
+<~  250-DSN
+<~  250 SMTPUTF8
+ ~> MAIL FROM:<admin@std9.os3.su>
+<~  250 2.1.0 Ok
+ ~> RCPT TO:<tematibr@gmail.com>
+<~  250 2.1.5 Ok
+ ~> DATA
+<~  354 End data with <CR><LF>.<CR><LF>
+ ~> Date: Fri, 27 Sep 2019 07:48:45 +0300
+ ~> To: tematibr@gmail.com
+ ~> From: admin@std9.os3.su
+ ~> Subject: test Fri, 27 Sep 2019 07:48:45 +0300
+ ~> Message-Id: <20190927074845.030861@artem-209-HP-EliteDesk-800-G1-SFF>
+ ~> X-Mailer: swaks v20170101.0 jetmore.org/john/code/swaks/
+ ~> 
+ ~> This is a test mailing
+ ~> 
+ ~> .
+<~  250 2.0.0 Ok: queued as 4E1F4B61477
+ ~> QUIT
+<~  221 2.0.0 Bye
+=== Connection closed with remote host.
+```
+
+
+
+The best service to use for verifying is https://www.mail-tester.com/. However it only offers 3 email tests per day (for free, otherwise you have to pay).
+
+
+
+sources: 
+
+1.	https://easyengine.io/tutorials/mail/dkim-postfix-ubuntu/
+2.	https://wiki.archlinux.org/index.php/OpenDKIM
 
 ## Appendix
 
 ** DANE**
 
 
-DANE allows to generate a self-signed certificate that would be verifiable by third parties. This is done by putting the hash of the certificate on the DNS server that is DNSSEC enabled and that is responsible for the domain. To quote RFC 6689 which defines DANE:
+DANE allows to generate a self-signed certificate that would be verifiable by third parties. This is done by putting the hash of the certificate on the DNS server that is serving that domain (the server must have DNSSEC enabled). To quote RFC 6689 which defines DANE:
 
 ```
 Encrypted communication on the Internet often uses Transport Layer Security (TLS), which depends on third parties to certify the keys used. This document improves on that situation by enabling the administrators of domain names to specify the keys used in that domain’s TLS servers.
