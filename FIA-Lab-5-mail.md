@@ -989,8 +989,92 @@ To work with the queue postfix provides `mailq` ,  `postqueue`, `postdrop` and `
 
 ## Task 3 - Mailing Loops
 ### Create an email loop within your colleague from domain to domain using email aliases.
-#### Send an email to the loop using your own email address and see what happens on your MTA.
-#### Can you change the behaviour of your MTA in response to this loop?
+
+I created an alias pointing to rodrigo as shown below:
+
+```
+$ cat /etc/aliases
+# See man 5 aliases for format
+postmaster:    rodry@std13.os3.su
+```
+
+Rodrigo created an alias for Rustam, and Rustam created an alias for me.
+
+### Send an email to the loop using your own email address and see what happens on your MTA.
+
+I used the following command to send email to rodrigo:
+
+```
+$ swaks --to rodry@std13.os3.su --protocol ESMTPS --from admin@std9.os3.su --ehlo mail.std9.os3.su --server mail.std9.os3.su
+```
+
+Below we can see that I get my logfile (`/var/log/mail.log`) with lines such as:
+
+```
+Sep 29 16:10:26 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtp[13888]: 596DCB614B5: to=<rodry@std13.os3.su>, orig_to=<postmaster@std9.os3.su>, relay=mail.std13.os3.su[188.130.155.46]:25, delay=1.4, delays=0.03/0/0.69/0.69, dsn=2.0.0, status=sent (250 OK id=1iEYy2-0003Gf-BH)
+```
+
+So the orig_to is `postmaster@std9.os3.su` and the relay is `mail.std13.os3.su`. This is the email that I originally send to Rodrigo. Below is the screenshot of my log:
+
+![artem@artem-209-HP-EliteDesk-800-G1-SFF: -usr-local-etc-nsd_372](FIA-Lab-5-mail.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20-usr-local-etc-nsd_372.png)
+
+
+
+
+
+The text version of the log is below:
+
+```
+$ tail -f /var/log/mail.log
+Sep 29 16:09:10 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[13884]: warning: hostname mail.st9.os3.su does not resolve to address 188.130.155.42
+Sep 29 16:09:10 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[13884]: connect from unknown[188.130.155.42]
+Sep 29 16:09:10 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[13884]: warning: connect to Milter service unix:/var/run/opendkim/opendkim.sock: No such file or directory
+Sep 29 16:09:10 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[13884]: Anonymous TLS connection established from unknown[188.130.155.42]: TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+Sep 29 16:09:10 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[13884]: CAC29B614B4: client=unknown[188.130.155.42]
+Sep 29 16:09:10 artem-209-HP-EliteDesk-800-G1-SFF postfix/cleanup[13887]: CAC29B614B4: message-id=<20190929160910.013895@artem-209-HP-EliteDesk-800-G1-SFF>
+Sep 29 16:09:10 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[13464]: CAC29B614B4: from=<postmaster@std9.os3.su>, size=516, nrcpt=1 (queue active)
+Sep 29 16:09:10 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[13884]: disconnect from unknown[188.130.155.42] ehlo=2 starttls=1 mail=1 rcpt=1 data=1 quit=1 commands=7
+Sep 29 16:09:12 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtp[13888]: CAC29B614B4: to=<rodry@std13.os3.su>, relay=mail.std13.os3.su[188.130.155.46]:25, delay=1.3, delays=0.03/0/0.53/0.72, dsn=2.0.0, status=sent (250 OK id=1iEYwp-0003GZ-IK)
+Sep 29 16:09:12 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[13464]: CAC29B614B4: removed
+Sep 29 16:10:25 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[13884]: warning: hostname std11.os3.su does not resolve to address 188.130.155.44: Name or service not known
+Sep 29 16:10:25 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[13884]: connect from unknown[188.130.155.44]
+Sep 29 16:10:25 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[13884]: warning: connect to Milter service unix:/var/run/opendkim/opendkim.sock: No such file or directory
+Sep 29 16:10:25 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[13884]: 4C675B614B4: client=unknown[188.130.155.44]
+Sep 29 16:10:25 artem-209-HP-EliteDesk-800-G1-SFF postfix/cleanup[13887]: 4C675B614B4: message-id=<E1iEYxs-0005cW-Fo@std11.os3.su>
+Sep 29 16:10:25 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[13464]: 4C675B614B4: from=<rusadmin@std11.os3.su>, size=571, nrcpt=1 (queue active)
+Sep 29 16:10:25 artem-209-HP-EliteDesk-800-G1-SFF postfix/cleanup[13887]: 596DCB614B5: message-id=<E1iEYxs-0005cW-Fo@std11.os3.su>
+Sep 29 16:10:25 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[13884]: disconnect from unknown[188.130.155.44] ehlo=1 mail=1 rcpt=1 data=1 quit=1 commands=5
+Sep 29 16:10:25 artem-209-HP-EliteDesk-800-G1-SFF postfix/local[13951]: 4C675B614B4: to=<postmaster@std9.os3.su>, relay=local, delay=0.09, delays=0.05/0.01/0/0.03, dsn=2.0.0, status=sent (forwarded as 596DCB614B5)
+Sep 29 16:10:25 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[13464]: 596DCB614B5: from=<rusadmin@std11.os3.su>, size=706, nrcpt=1 (queue active)
+Sep 29 16:10:25 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[13464]: 4C675B614B4: removed
+Sep 29 16:10:26 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtp[13888]: 596DCB614B5: to=<rodry@std13.os3.su>, orig_to=<postmaster@std9.os3.su>, relay=mail.std13.os3.su[188.130.155.46]:25, delay=1.4, delays=0.03/0/0.69/0.69, dsn=2.0.0, status=sent (250 OK id=1iEYy2-0003Gf-BH)
+Sep 29 16:10:26 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[13464]: 596DCB614B5: removed
+Sep 29 16:11:15 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[13464]: A6AF2B614AE: from=<postmaster@std9.os3.su>, size=514, nrcpt=1 (queue active)
+Sep 29 16:11:15 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[13464]: C634AB614AF: from=<admin@std9.os3.su>, size=509, nrcpt=1 (queue active)
+Sep 29 16:11:15 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[13464]: 9016DB614AB: from=<admin@std9.os3.su>, size=509, nrcpt=1 (queue active)
+```
+
+
+
+### Can you change the behaviour of your MTA in response to this loop?
+
+The problem and solutions are outlined in RFC 3834 (https://tools.ietf.org/html/rfc3834). In particular it suggests that:
+
+```
+   -  Automatic responses SHOULD NOT be issued in response to any
+      message which contains an Auto-Submitted header field (see below),
+      where that field has any value other than "no".
+```
+
+where the auto-submitted header should be included in the message header of any automatic response and is defined in Section 5 of that document (https://tools.ietf.org/html/rfc3834#section-5). Actually this RFC is already implemented in the `postfix-bounce` program.
+
+If that header is not present its possible to set up flood limits such as no more than X messages every Y minutes.
+
+The loop is caused by a misconfigured alias, so the best response is fixing the alias. 
+
+source: https://serverfault.com/questions/462724/how-to-avoid-automatic-responses-from-putting-our-mail-server-in-a-loop
+
+
 
 
 ## Task 4 - Virtual Domains
@@ -1980,8 +2064,6 @@ To test this setup the python script was insufficient. I decided to use `swaks` 
 1. Official documentation: https://www.jetmore.org/john/code/swaks/latest/doc/ref.txt
 2. https://easyengine.io/tutorials/mail/swaks-smtp-test-tool/
 
-**TODO verification**
-
 Sending email to gmail with swaks is shown below:
 
 ```
@@ -2021,25 +2103,393 @@ $ swaks --to tematibr@gmail.com --protocol ESMTPS --from admin@std9.os3.su --ehl
 <~  250 2.1.5 Ok
  ~> DATA
 <~  354 End data with <CR><LF>.<CR><LF>
- ~> Date: Fri, 27 Sep 2019 07:48:45 +0300
+ ~> Date: Sun, 29 Sep 2019 14:03:08 +0300
  ~> To: tematibr@gmail.com
  ~> From: admin@std9.os3.su
- ~> Subject: test Fri, 27 Sep 2019 07:48:45 +0300
- ~> Message-Id: <20190927074845.030861@artem-209-HP-EliteDesk-800-G1-SFF>
+ ~> Subject: test Sun, 29 Sep 2019 14:03:08 +0300
+ ~> Message-Id: <20190929140308.009470@artem-209-HP-EliteDesk-800-G1-SFF>
  ~> X-Mailer: swaks v20170101.0 jetmore.org/john/code/swaks/
  ~> 
  ~> This is a test mailing
  ~> 
  ~> .
-<~  250 2.0.0 Ok: queued as 4E1F4B61477
+<~  250 2.0.0 Ok: queued as D7388B614AA
+ ~> QUIT
+<~  221 2.0.0 Bye
+=== Connection closed with remote host.
+```
+
+Below is shown the interaction between swaks (port 53024), postfix (port 25 and port 49550) and OpenDKIM (port 8892) that was captured by wireshark on localhost:
+
+![Capturing from Loopback: lo [Gateway2 ether2 to Internal swp1]_370](FIA-Lab-5-mail.assets/Capturing%20from%20Loopback%20lo%20%5BGateway2%20ether2%20to%20Internal%20swp1%5D_370.png)
+
+
+
+This confirms that OpenDKIM on port 8891 is working. However I noticed that my email did not get the `DKIM-Signature` header. An example header that I received from gmail is shown below:
+
+```
+From tematibr@gmail.com  Sun Sep 22 02:56:55 2019
+Return-Path: <tematibr@gmail.com>
+X-Original-To: admin@subdom.std9.os3.su
+Delivered-To: mailman@std9.os3.su
+Received: from mail-lj1-f179.google.com (mail-lj1-f179.google.com [209.85.208.179])
+	by mail.std9.os3.su (Postfix) with ESMTPS id 5090BB616AC
+	for <admin@subdom.std9.os3.su>; Sun, 22 Sep 2019 02:56:55 +0300 (MSK)
+Received: by mail-lj1-f179.google.com with SMTP id e17so10277442ljf.13
+        for <admin@subdom.std9.os3.su>; Sat, 21 Sep 2019 16:56:55 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:from:date:message-id:subject:to;
+        bh=W7/5qnEjoWlks/wgsZED0M/eltODj2XmqH6VUDZjzWY=;
+        b=Akp/ZggpSiEM76RhE0fRWJMDFy+BKSwyqLL2OvvH3VOM8YvbJH4xxZmGI6w1ga51PX
+         ABJspuTwpyFh2ELais96IlRnPG3sjPsP67zJXncw1c21lEAjCOxsyyKl5bVAMaYZSFeA
+         hnIcJXKMhyHPRap3HPr7aAurVXW2l1GvaHyl/BDDGyELInvpfGqUtJfaNcjFFF0hBBiR
+         5m2O37bMQvmXLNxEnoMmEkwEjHhJY6OyVlrXfB0EBNIA0bOgnbxWB/+lPUz8pr/BrxiD
+         tHQrGqTgK57s76Kvh21PelZ3t4x5XQgBV80mNaCidNwolaULhAQ7JA865I2bCk94i6nZ
+         9/3A==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:from:date:message-id:subject:to;
+        bh=W7/5qnEjoWlks/wgsZED0M/eltODj2XmqH6VUDZjzWY=;
+        b=oQfw36pa/FkibKFT9GlB28vuHpNWHb2hGK1GXkyR0XoTGaYKCZidDz6Aqt1pbvVqzn
+         gkolIDOaGc9AlF1TMdcbQZgJuUrwJP2/pnI44Eus0ngobqOPqdRh5pDCMk9G1a9f/Dnp
+         +eZpjKQOd+ql2SSBgAaueRl1/6yYaKXCYs2ex/5wKkmbyc+okWwdTgJ6Ri66tcXuXQJw
+         uM2mNCtwfUKyPQmPazLfBwsHUNdZhlUHEzmOFh+YVRUtKcSx4Fe/edKHAzJ1gTZJrN3d
+         aWycCHMKwmH3aVNgUrIuZ18HNhbkj651iL24680MTPItpAQXSVH+dNKRDrSxZmIp0YIH
+         2XZg==
+X-Gm-Message-State: APjAAAUhTOgB/e9b6RbqEgt1k/PkQ8NBMP/5XFk+zTE+CWOuck5pc9/T
+	XXkzomPAk9S183Bpk56yyNuliJvFN0kPwB2v2jFiYA==
+X-Google-Smtp-Source: APXvYqw9GiNQf6wGf+kZp4hUPGicjdYIzyB3DjwTbnqKjS6w1j0i/l2mjIYYpvMbrmjjf9Hc3ofE+g6ExN7Ds7Vg7+4=
+X-Received: by 2002:a2e:810e:: with SMTP id d14mr13455276ljg.160.1569110214318;
+ Sat, 21 Sep 2019 16:56:54 -0700 (PDT)
+MIME-Version: 1.0
+```
+
+
+When investigating the status of the opendkim service I was met with the following error:
+
+```
+$ systemctl status opendkim.service 
+● opendkim.service - OpenDKIM DomainKeys Identified Mail (DKIM) Milter
+   Loaded: loaded (/lib/systemd/system/opendkim.service; enabled; vendor preset: enabled)
+   Active: active (running) since Sun 2019-09-29 14:01:43 MSK; 1h 11min ago
+     Docs: man:opendkim(8)
+           man:opendkim.conf(5)
+           man:opendkim-genkey(8)
+           man:opendkim-genzone(8)
+           man:opendkim-testadsp(8)
+           man:opendkim-testkey
+           http://www.opendkim.org/docs.html
+  Process: 9395 ExecStart=/usr/sbin/opendkim -x /etc/opendkim.conf (code=exited, status=0/SUCCESS)
+ Main PID: 9396 (opendkim)
+    Tasks: 6 (limit: 4915)
+   CGroup: /system.slice/opendkim.service
+           └─9396 /usr/sbin/opendkim -x /etc/opendkim.conf
+
+Sep 29 14:01:43 artem systemd[1]: Starting OpenDKIM DomainKeys Identified Mail (DKIM) Milter...
+Sep 29 14:01:43 artem systemd[1]: Started OpenDKIM DomainKeys Identified Mail (DKIM) Milter.
+Sep 29 14:01:43 artem opendkim[9396]: OpenDKIM Filter v2.11.0 starting (args: -x /etc/opendkim.conf)
+Sep 29 14:02:05 artem opendkim[9396]: D3A01B614AA: external host [188.130.155.42] attempted to send as std9.os3.su
+Sep 29 14:03:08 artem opendkim[9396]: D7388B614AA: external host [188.130.155.42] attempted to send as std9.os3.su
+Sep 29 14:14:27 artem opendkim[9396]: 5A781B614AA: external host [188.130.155.42] attempted to send as std9.os3.su
+Sep 29 14:34:55 artem opendkim[9396]: B9A79B614AA: external host [188.130.155.42] attempted to send as std9.os3.su
+Sep 29 15:12:14 artem opendkim[9396]: 496AFB614AA: external host [188.130.155.42] attempted to send as std9.os3.su
+```
+
+
+
+To overcome this issue the ip `188.130.155.42` can be added to the configuring InternalHosts variable in DKIM. First enable the InternalHosts. The full OpenDKIM config is shown below:
+
+```
+$ cat /etc/opendkim.conf
+Syslog			yes
+UMask			007
+Domain			std9.os3.su
+KeyFile			/etc/dkimkeys/mail.private
+Selector		mail
+Socket                inet:8891@localhost
+# Socket 			local:/var/run/opendkim/opendkim.sock
+PidFile               	/var/run/opendkim/opendkim.pid
+OversignHeaders		From
+TrustAnchorFile       	/usr/share/dns/root.key
+UserID                	opendkim
+Canonicalization 	relaxed/relaxed
+InternalHosts      	/etc/opendkim/TrustedHosts
+```
+
+
+
+Then I created `/etc/opendkim/TrustedHosts` (had to create the directory as well):
+
+```
+$ sudo mkdir /etc/opendkim
+$ sudo vim /etc/opendkim/TrustedHosts
+$ sudo chown opendkim:opendkim -R opendkim
+$ ll | grep opendkim
+drwx------   2 opendkim opendkim   4096 Sep 27 06:43 dkimkeys/
+drwxr-xr-x   2 opendkim opendkim   4096 Sep 29 17:54 opendkim/
+-rw-r--r--   1 root     root        426 Sep 29 17:53 opendkim.conf
+-rw-r--r--   1 root     root       2803 Sep 29 15:29 opendkim.conf.example
+$
+$ sudo ls -la opendkim
+total 20
+drwxr-xr-x   2 opendkim opendkim  4096 Sep 29 17:54 .
+drwxr-xr-x 155 root     root     12288 Sep 29 17:54 ..
+-rw-r--r--   1 opendkim opendkim    76 Sep 29 17:54 TrustedHosts
+
+```
+
+The contents of `TrustedHosts`:
+
+```
+$ sudo cat opendkim/TrustedHosts 
+mail.std9.os3.su
+127.0.0.1
+188.130.155.42
+artem-209-HP-EliteDesk-800-G1-SFF
+```
+
+Finally after restarting opendkim service and the postfix daemon everything seems to have worked. Testing it is shown below:
+
+```
+$ swaks --to tematibr@gmail.com --protocol ESMTPS --from admin@std9.os3.su --ehlo mail.std9.os3.su --server mail.std9.os3.su
+=== Trying mail.std9.os3.su:25...
+=== Connected to mail.std9.os3.su.
+<-  220 mail.std9.os3.su ESMTP Postfix
+ -> EHLO mail.std9.os3.su
+<-  250-mail.std9.os3.su
+<-  250-PIPELINING
+<-  250-SIZE 10240000
+<-  250-VRFY
+<-  250-ETRN
+<-  250-STARTTLS
+<-  250-ENHANCEDSTATUSCODES
+<-  250-8BITMIME
+<-  250-DSN
+<-  250 SMTPUTF8
+ -> STARTTLS
+<-  220 2.0.0 Ready to start TLS
+=== TLS started with cipher UNKNOWN(0x0304):TLS_AES_256_GCM_SHA384:256
+=== TLS no local certificate set
+=== TLS peer DN="/CN=ubuntu"
+ ~> EHLO mail.std9.os3.su
+<~  250-mail.std9.os3.su
+<~  250-PIPELINING
+<~  250-SIZE 10240000
+<~  250-VRFY
+<~  250-ETRN
+<~  250-ENHANCEDSTATUSCODES
+<~  250-8BITMIME
+<~  250-DSN
+<~  250 SMTPUTF8
+ ~> MAIL FROM:<admin@std9.os3.su>
+<~  250 2.1.0 Ok
+ ~> RCPT TO:<tematibr@gmail.com>
+<~  250 2.1.5 Ok
+ ~> DATA
+<~  354 End data with <CR><LF>.<CR><LF>
+ ~> Date: Sun, 29 Sep 2019 18:04:52 +0300
+ ~> To: tematibr@gmail.com
+ ~> From: admin@std9.os3.su
+ ~> Subject: test Sun, 29 Sep 2019 18:04:52 +0300
+ ~> Message-Id: <20190929180452.018711@artem-209-HP-EliteDesk-800-G1-SFF>
+ ~> X-Mailer: swaks v20170101.0 jetmore.org/john/code/swaks/
+ ~> 
+ ~> This is a test mailing
+ ~> 
+ ~> .
+<~  250 2.0.0 Ok: queued as B3568B614AA
  ~> QUIT
 <~  221 2.0.0 Bye
 === Connection closed with remote host.
 ```
 
 
+And the raw email as seen from gmail:
 
-The best service to use for verifying is https://www.mail-tester.com/. However it only offers 3 email tests per day (for free, otherwise you have to pay).
+```
+Delivered-To: tematibr@gmail.com
+Received: by 2002:ac2:515c:0:0:0:0:0 with SMTP id q28csp6048012lfd;
+        Sun, 29 Sep 2019 08:04:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxCQB4eYW1XctKpgWo1TWsVFQ+Snmi+3TaAxzhEY8av4oPg7DPF4LAfQCS9aa+vUTmfkZKM
+X-Received: by 2002:a19:d6:: with SMTP id 205mr8908610lfa.144.1569769493814;
+        Sun, 29 Sep 2019 08:04:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1569769493; cv=none;
+        d=google.com; s=arc-20160816;
+        b=SGDiqvRss7bq8wi/k7prZVff/aC3iHGC6ePbAYIyk4wKe+Mh7xTpqY4qEsdmBRTpb7
+         MBT3yUsdL6ORcq61eb2V/5Eu5+7keGwlK9hkjVLQsmPpNggwmALoQrUQqB+PRs2bGrB8
+         tlG2skGbgoHLBm6ooL4uMqmaTVneLVHDEPosC9LiS91x4Si9oISPGwSy3S2f7EXHN4Xk
+         sBi9ElY35MY0QfpHNgrqYypVLjyFEsdgXoHVyL/ZreI+RlYeV2lVlNJEhThi56L5NoKd
+         f0XmyT8uZMnKMHDvl0xJsm3ORpVNRLy2be1P7rQUWrPjHPSfpC4xrRI84dZfscNzpKfj
+         F2cQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=message-id:subject:from:to:date:dkim-signature;
+        bh=ecGWgWCJeWxJFeM0urOVWP+KOlqqvsQYKOpYUP8nk7I=;
+        b=WrNpiyhBZUTptn0+36bXsPiGzI8ZesBxCEnwOwA+XdODUpkaY3JbgLddP++twB6pot
+         R7Pi3y9WAIZjeYlC8356sd3bhW6xNbkXUBcWYs5IpuIf3aQFvtZnLm+u8MnnkyAeN5OH
+         K3iTnUCiujHSi995dneIyvGSNmyRnh+lHyBsucsxS4pY2m52jNgHPVpdnSHg21igc+1J
+         iDwFqjxOurFq7KuciX8FMq3mi0roZVEAMcEkaiEYUFz+y2KTHKmtg3w6++VTAAThna4R
+         hol+aMqVbXKLKTlKv9I6WXi+bUL8viHeFsUSpGaEcMD6Kw1OQ2R09rvVBp7AroIfNXk9
+         xxBg==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass (test mode) header.i=@std9.os3.su header.s=mail header.b="Fj/+rqic";
+       spf=neutral (google.com: 188.130.155.42 is neither permitted nor denied by best guess record for domain of admin@std9.os3.su) smtp.mailfrom=admin@std9.os3.su
+Return-Path: <admin@std9.os3.su>
+Received: from mail.std9.os3.su ([188.130.155.42])
+        by mx.google.com with ESMTPS id 17si8777012ljh.69.2019.09.29.08.04.53
+        for <tematibr@gmail.com>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Sun, 29 Sep 2019 08:04:53 -0700 (PDT)
+Received-SPF: neutral (google.com: 188.130.155.42 is neither permitted nor denied by best guess record for domain of admin@std9.os3.su) client-ip=188.130.155.42;
+Authentication-Results: mx.google.com;
+       dkim=pass (test mode) header.i=@std9.os3.su header.s=mail header.b="Fj/+rqic";
+       spf=neutral (google.com: 188.130.155.42 is neither permitted nor denied by best guess record for domain of admin@std9.os3.su) smtp.mailfrom=admin@std9.os3.su
+Received: from mail.std9.os3.su (unknown [188.130.155.42]) by mail.std9.os3.su (Postfix) with ESMTPS id B3568B614AA for <tematibr@gmail.com>; Sun, 29 Sep 2019 18:04:52 +0300 (MSK)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=std9.os3.su; s=mail; t=1569769492; bh=ecGWgWCJeWxJFeM0urOVWP+KOlqqvsQYKOpYUP8nk7I=; h=Date:To:From:Subject:From; b=Fj/+rqicPqItJbtoTbSfBH73mExpZ8pqinrYLfjvIiGMhLYEBkdFzkafS2TjuyT6O
+	 F8yPwkFd0+TQUAJWF7IjGnT8134ESnLBoJMQ8dUbHoECJmnis+Gz6W4Lt7yER8Kt14
+	 6E3jPP/1j9C2xWovH99vwGPyArmYGUqDMk1ELeR+0ctZruKy7PRVgsyJ9kHumvL7Jj
+	 C83vHuCiS3XZMTEPmh/d7vNGb6ZrAEwpGQMtEAerW5yFm0KU1iqwX0Xrav6gAt1vuq
+	 ETyA2rK9NiY7ApOQ3apWQP0e0aB34MsgQUdc+z172lZhTI+bz3FI/B1D1+vrGwHzSI
+	 o+Yl+QlzDQOJA==
+Date: Sun, 29 Sep 2019 18:04:52 +0300
+To: tematibr@gmail.com
+From: admin@std9.os3.su
+Subject: test Sun, 29 Sep 2019 18:04:52 +0300
+Message-Id: <20190929180452.018711@artem-209-HP-EliteDesk-800-G1-SFF>
+X-Mailer: swaks v20170101.0 jetmore.org/john/code/swaks/
+
+This is a test mailing
+```
+
+Indeed there is a DKIM signature present. And here is the screenshot showing that the DKIM was interpreted by google correctly (marked as `PASS`):
+
+![Selection_373](FIA-Lab-5-mail.assets/Selection_373.png)
+
+
+
+
+
+The best service to use for verifying is https://www.mail-tester.com/. However it only offers 3 email tests per day (for free, otherwise you have to pay). Below is the result of testing against this service:
+
+![Firefox_Screenshot_2019-09-29T15-35-16.440Z](FIA-Lab-5-mail.assets/Firefox_Screenshot_2019-09-29T15-35-16.440Z.png)
+
+
+
+The next step is making sure that my server verifies the DKIM signature of the incoming emails. Here is an example mail I received from a friend's gmail account:
+
+```
+From aragornynn@gmail.com  Sun Sep 29 19:02:32 2019
+Return-Path: <aragornynn@gmail.com>
+X-Original-To: admin@std9.os3.su
+Delivered-To: admin@std9.os3.su
+Received: from mail-lf1-f49.google.com (mail-lf1-f49.google.com [209.85.167.49])
+	by mail.std9.os3.su (Postfix) with ESMTPS id E2B82B614AA
+	for <admin@std9.os3.su>; Sun, 29 Sep 2019 19:02:31 +0300 (MSK)
+Authentication-Results: mail.std9.os3.su;
+	dkim=pass (2048-bit key; unprotected) header.d=gmail.com header.i=@gmail.com header.b="hx8Q63yT";
+	dkim-atps=neutral
+Received: by mail-lf1-f49.google.com with SMTP id d17so5208814lfa.7
+        for <admin@std9.os3.su>; Sun, 29 Sep 2019 09:02:31 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to;
+        bh=Koo8PKRR9DgReU+q6TK6wWMdAnSvFiUWcVwqw6Pcs3k=;
+        b=hx8Q63yTAtzfZDXiOYVFwiVt04CpK3BrHyZxlPtRpXmGKAEIptH5iu8ZIusnTWxfvp
+         1iVKIhWga7f99kg1vsxN1fnZmOnAG6IUmt6AlvquLzSBKAigARbr/FPR5/giUvJ4Y/kS
+         7FVJolGhhh1T5z6z7SG1B0jKFspkcLZi881+n4imQ+FeGcSvae2llbn6okuTZjkYI3qR
+         d/sR1arLeUn5NI+XsnPq1KS+h/qxM7pgrKn4VYdAdDVw27Gb+5UizEmV0Ynh+cmpyuam
+         QNrZKE7A0p2Ey4J0jVON1Fw9GGvM+U+fH20JUp+KSK5D2LLIRA3xYQ3Md0GHsXVmUPF+
+         ppzA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to;
+        bh=Koo8PKRR9DgReU+q6TK6wWMdAnSvFiUWcVwqw6Pcs3k=;
+        b=PH9rblBlNVRRm1sIj5QjRifEoq4KtyWIMguNvmu3T+r3glZjZjCEvchNyH0yf4sHJb
+         dmqB9EQScvbXS9jxN5+jIyJYavKtX09o1pM+wgW8rB7EPT/UEm/F36Osgdo1kgLUd635
+         G/JzC7e/kBxSgMxqj62X2mbSJFuZ2jDPkVBnu64Jv4Y29yE3egVQ21Py70Ns3UVsvxCg
+         uIuDQi5DpCzOv7xGv2GKQiNGfyAKXU5VKbVggPtlRQqU1j0WFT3ccuLQSDbzH/0G2RO3
+         2LmV8b7bHvlyM4PoerH8wmodBu9/E0Y1O46y00xZEDAGSMPnNvx9dAgv8lh3240ONPpi
+         5gpQ==
+X-Gm-Message-State: APjAAAWBwY8driMFpfsu3USdspy3AGeEh8E35RLNlyyrXuFcFyZKMC8J
+	7ofHgjut9N9RTKSEcv4LPYmzhJ/68cybzCRDsF686Q==
+X-Google-Smtp-Source: APXvYqxd0EMQhN7MKi+SvlVDTJ1FZnM/X/Zof9AZjBQidOUL8Q3qMXry572Wd8NYKrBLAHPwZV78YyQIg12jaxM2PwM=
+X-Received: by 2002:a19:c7d3:: with SMTP id x202mr8555561lff.124.1569772950983;
+ Sun, 29 Sep 2019 09:02:30 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190929182430.019177@artem-209-HP-EliteDesk-800-G1-SFF>
+In-Reply-To: <20190929182430.019177@artem-209-HP-EliteDesk-800-G1-SFF>
+From: =?UTF-8?B?0J3QsNGB0YLRjyDQkNC90LDQvdCw0YHRgtGP?= <aragornynn@gmail.com>
+Date: Sun, 29 Sep 2019 19:02:19 +0300
+Message-ID: <CAJQJQ_qhi9o853dTXyJBh+k8DjZzk+kpdNBVNHBy3N7t8oJjpA@mail.gmail.com>
+Subject: Re: test Sun, 29 Sep 2019 18:24:30 +0300
+To: admin@std9.os3.su
+Content-Type: multipart/alternative; boundary="0000000000001f1a380593b33f31"
+
+--0000000000001f1a380593b33f31
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: base64
+
+0J/RgNC40LLQtdGCINCQ0LvRgtC10LwNCg0K0LLRgSwgMjkg0YHQtdC90YIuIDIwMTkg0LMuLCAx
+ODoyNCA8YWRtaW5Ac3RkOS5vczMuc3U+Og0KDQo+IFByaXZldCBhcmFnb3JuIQ0KPg0KPg0K
+--0000000000001f1a380593b33f31
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"auto">=D0=9F=D1=80=D0=B8=D0=B2=D0=B5=D1=82 =D0=90=D0=BB=D1=82=
+=D0=B5=D0=BC</div><br><div class=3D"gmail_quote"><div dir=3D"ltr" class=3D"=
+gmail_attr">=D0=B2=D1=81, 29 =D1=81=D0=B5=D0=BD=D1=82. 2019 =D0=B3., 18:24 =
+ &lt;<a href=3D"mailto:admin@std9.os3.su">admin@std9.os3.su</a>&gt;:<br></d=
+iv><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left=
+:1px #ccc solid;padding-left:1ex">Privet aragorn!<br>
+<br>
+</blockquote></div>
+
+--0000000000001f1a380593b33f31--
+```
+
+
+
+Looking at the logs we can see that the DKIM was verified (see the last line):
+
+```
+$ systemctl status opendkim
+● opendkim.service - OpenDKIM DomainKeys Identified Mail (DKIM) Milter
+   Loaded: loaded (/lib/systemd/system/opendkim.service; enabled; vendor preset: enabled)
+   Active: active (running) since Sun 2019-09-29 17:55:28 MSK; 3h 5min ago
+     Docs: man:opendkim(8)
+           man:opendkim.conf(5)
+           man:opendkim-genkey(8)
+           man:opendkim-genzone(8)
+           man:opendkim-testadsp(8)
+           man:opendkim-testkey
+           http://www.opendkim.org/docs.html
+  Process: 18317 ExecStart=/usr/sbin/opendkim -x /etc/opendkim.conf (code=exited, status=0/SUCCESS)
+ Main PID: 18319 (opendkim)
+    Tasks: 7 (limit: 4915)
+   CGroup: /system.slice/opendkim.service
+           └─18319 /usr/sbin/opendkim -x /etc/opendkim.conf
+
+Sep 29 17:55:28 artem-209-HP-EliteDesk-800-G1-SFF systemd[1]: Starting OpenDKIM DomainKeys Identified Mail (DKIM) Milter...
+Sep 29 17:55:28 artem-209-HP-EliteDesk-800-G1-SFF systemd[1]: opendkim.service: Can't open PID file /var/run/opendkim/opendkim.pid (yet?) after start: No such file or directory
+Sep 29 17:55:28 artem-209-HP-EliteDesk-800-G1-SFF opendkim[18319]: OpenDKIM Filter v2.11.0 starting (args: -x /etc/opendkim.conf)
+Sep 29 17:55:28 artem-209-HP-EliteDesk-800-G1-SFF systemd[1]: Started OpenDKIM DomainKeys Identified Mail (DKIM) Milter.
+Sep 29 19:02:32 artem-209-HP-EliteDesk-800-G1-SFF opendkim[18319]: E2B82B614AA: s=20161025 d=gmail.com SSL
+```
+
+The postfix logs confirm this:
+
+```
+Sep 29 19:02:31 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[20300]: connect from mail-lf1-f49.google.com[209.85.167.49]
+Sep 29 19:02:31 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[20300]: Anonymous TLS connection established from mail-lf1-f49.google.com[209.85.167.49]: TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
+Sep 29 19:02:31 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[20300]: E2B82B614AA: client=mail-lf1-f49.google.com[209.85.167.49]
+Sep 29 19:02:31 artem-209-HP-EliteDesk-800-G1-SFF postfix/cleanup[20304]: E2B82B614AA: message-id=<CAJQJQ_qhi9o853dTXyJBh+k8DjZzk+kpdNBVNHBy3N7t8oJjpA@mail.gmail.com>
+Sep 29 19:02:32 artem-209-HP-EliteDesk-800-G1-SFF opendkim[18319]: E2B82B614AA: s=20161025 d=gmail.com SSL
+Sep 29 19:02:32 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[18694]: E2B82B614AA: from=<aragornynn@gmail.com>, size=3465, nrcpt=1 (queue active)
+Sep 29 19:02:32 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[20300]: disconnect from mail-lf1-f49.google.com[209.85.167.49] ehlo=2 starttls=1 mail=1 rcpt=1 data=1 quit=1 commands=7
+Sep 29 19:02:32 artem-209-HP-EliteDesk-800-G1-SFF postfix/local[20308]: E2B82B614AA: to=<mailman@std9.os3.su>, orig_to=<admin@std9.os3.su>, relay=local, delay=0.61, delays=0.56/0.01/0/0.03, dsn=2.0.0, status=sent (delivered to mailbox)
+Sep 29 19:02:32 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[18694]: E2B82B614AA: removed
+```
 
 
 
