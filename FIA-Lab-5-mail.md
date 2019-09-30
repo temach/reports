@@ -361,7 +361,11 @@ $ make makefiles CCARGS="-DHAS_PCRE -DHAS_SQLITE -I/usr/include -DHAS_SSL -I/usr
 	sample_directory=/usr/share/doc/postfix/examples \
 	readme_directory=/usr/share/doc/postfix \
 	html_directory=/usr/share/doc/postfix/html
+$ make
+$ make install
 ```
+
+To compile it successfully I had to also install the `libdb5.3-dev` package.
 
 To find the build log for Ubuntu I used info from the following link: https://askubuntu.com/questions/48499/where-can-i-find-the-configure-options-used-to-build-a-package
 
@@ -825,7 +829,7 @@ The administrator can define policies, or cleanup checks that cause messages to 
 
 Incoming mail gets queued in the `incoming` queue. When a message reaches the incoming queue the next step is to deliver it to the actual recipient on this machine. 
 
-The `active queue` acts as a window on potentially large `incoming`or `deferred queues`.  
+The `active queue` acts as a window on potentially large `incoming` or `deferred queues`.  
 
 The deferred queue is used for mail that cannot be delivered, if for example the remote host could not be contacted.
 
@@ -976,21 +980,240 @@ To work with the queue postfix provides `mailq` ,  `postqueue`, `postdrop` and `
 ## Task 2 - MX Fallback
 
 ### You have backup
-#### Adapt the DNS information for /var/spool/postfixyour domain, so that the backup MX on your colleague’s server can be found.
-#### (...your colleague configures its MTA as a backup MX...)
-#### Validate by shutting your service down and sending a message to your domain
-#### (...your colleague sees its logs and where the message is temporarily stored...)
+#### Adapt the DNS information to your domain, so that the backup MX on your colleague’s server can be found. (...your colleague configures its MTA as a backup MX...)
+
+Added the MX record as below to the `/usr/local/etc/nsd/std9.os3.su.zone.signed`:
+
+```
+std9.os3.su.	3600	IN	MX	20 mail.std4.os3.su.
+```
+
+Then I updated my zone serial number and checked syntax with:
+
+```
+# ldns-read-zone -S YYYYMMDDxx std9.os3.su.zone.signed > std9.os3.su.zone
+```
+
+Check the config:
+
+```
+$ cat /usr/local/etc/nsd/std9.os3.su.zone
+std9.os3.su.	3600	IN	SOA	ns0.std9.os3.su. admin.std9.os3.su. 2019092900 10800 3600 604800 38400
+www.std9.os3.su.	3600	IN	CNAME	notes.std9.os3.su.
+tst.std9.os3.su.	3600	IN	AAAA	2400:6180:100:d0::8c4:9001
+tst.std9.os3.su.	3600	IN	A	68.183.92.166
+subdom.std9.os3.su.	3600	IN	NS	ns0.std9.os3.su.
+ns0.std9.os3.su.	3600	IN	A	188.130.155.42
+notes.std9.os3.su.	3600	IN	CNAME	temach.github.io.
+_25._tcp.mail.std9.os3.su.	3600	IN	TLSA	3 0 1 dd1a910a046a841b553f0bc42d7789554e1679a2307f367aa5685eb3dc72180f
+mail.std9.os3.su.	3600	IN	A	188.130.155.42
+lab.std9.os3.su.	3600	IN	A	188.130.155.42
+ansible.std9.os3.su.	3600	IN	AAAA	2a00:b700::6:220
+ansible.std9.os3.su.	3600	IN	A	185.22.153.49
+_25._tcp.std9.os3.su.	3600	IN	TLSA	3 0 1 dd1a910a046a841b553f0bc42d7789554e1679a2307f367aa5685eb3dc72180f
+mail._domainkey.std9.os3.su.	3600	IN	TXT	"v=DKIM1; h=sha256; k=rsa; t=y; " "p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx3I/m/OcpD5i9dd1cfoFugnVKEuJD3e+BF/nx1bx3s5HPZ9rWFzeT+sllPnE2vaGoB3RRVyB4l9F7pm/UP5ivlDeH8sIvercqwMEDY8TvqJS7Wa8xH8wJHEQ2sGZ0YxGOEzAa76T2tF16cf/V++x0Snzzak1q8A1xt2MGlCEnAOS5Vh0lBtykHg2oihwl+yFtwa93w/xzPeRjB" "G5y0ddK10aURWeQMgAVnAf/7bqA7YkujyOVQuHRx1XtNkZe+IZxhTVhFMS2ii/UZrvo+Fbo92B98OConORmyJwrWt6jul0Th9AFdB3LMRhhv72y7g5mpwDFT08eqjqABSIWb/WTwIDAQAB"
+std9.os3.su.	3600	IN	DNSKEY	257 3 13 ZP8yUKKmSdi8H03m2Pzynh8nTyis1LV72Bmf+ZBbdS0/bBoVIVIBEJ3uYPGMoOlu7kbybMNfLRW1kKRvb6Gv5g== ;{id = 59198 (ksk), size = 256b}
+std9.os3.su.	3600	IN	DNSKEY	256 3 13 tMVV1aZA+72bTZUh53xB12Xl/dsxcGR5W/aIeZ3+rzSceq3WT88CitEzzcaC8dwcJ2jtZlFXmDRGnf55f6RgVw== ;{id = 62425 (zsk), size = 256b}
+std9.os3.su.	3600	IN	MX	10 mail.std9.os3.su.
+std9.os3.su.	3600	IN	MX	20 mail.std4.os3.su.
+std9.os3.su.	3600	IN	NS	ns0.std9.os3.su.
+```
+
+Then I resigned the zone file:
+
+```
+# ldns-signzone -e $(date -d "1 month 2 days" "+%Y%m%d") std9.os3.su.zone Kstd9.os3.su.+013+59198 Kstd9.os3.su.+013+62425
+```
+
+Finally I restarted NSD.
+
+#### 
+
+#### Validate by shutting your service down and sending a message to your domain (...your colleague sees its logs and where the message is temporarily stored...)
+I stopped my mail server with:
+
+```
+$ sudo postfix stop
+```
+
+Then I send the email from gmail (the raw headers are shown below):
+
+```
+MIME-Version: 1.0
+Date: Sun, 29 Sep 2019 21:57:29 +0300
+Message-ID: <CAHWOQyi3pxDDKcyb+6cXZO1Qe0vr0-EtG6bt-U7Oq8=K9yenhQ@mail.gmail.com>
+Subject: Hello 3!
+From: Artem Abramov <tematibr@gmail.com>
+To: admin@std9.os3.su
+Content-Type: multipart/alternative; boundary="000000000000e992220593b5b06b"
+
+--000000000000e992220593b5b06b
+Content-Type: text/plain; charset="UTF-8"
+
+This should go to backup 3.
+
+--000000000000e992220593b5b06b
+Content-Type: text/html; charset="UTF-8"
+
+<div dir="ltr">This should go to backup 3.<br></div>
+
+--000000000000e992220593b5b06b--
+```
+
+At this point I was waiting for logs to register on my colleague.
+
 #### Bring your service back up and wait
+
+I restored the postfix service with the command:
+
+```
+$ sudo postfix start
+```
+
+After my teammate flushed the queue, the delivery was successful (from `/var/mail/mailman`, because `admin` is configured to alias to `mailman` on my mailserver):
+
+```
+From tematibr@gmail.com  Sun Sep 29 22:02:33 2019
+Return-Path: <tematibr@gmail.com>
+X-Original-To: admin@std9.os3.su
+Delivered-To: admin@std9.os3.su
+Received: from mail.std4.os3.su (unknown [188.130.155.37])
+	by mail.std9.os3.su (Postfix) with ESMTP id 829B4B614AA
+	for <admin@std9.os3.su>; Sun, 29 Sep 2019 22:02:33 +0300 (MSK)
+Authentication-Results: mail.std9.os3.su;
+	dkim=pass (2048-bit key; unprotected) header.d=gmail.com header.i=@gmail.com header.b="e8OwANIJ";
+	dkim-atps=neutral
+Received: from mail-lf1-f54.google.com (mail-lf1-f54.google.com [209.85.167.54])
+	by mail.std4.os3.su (Postfix) with ESMTP id 6E987100625
+	for <admin@std9.os3.su>; Sun, 29 Sep 2019 21:57:41 +0300 (MSK)
+Received: by mail-lf1-f54.google.com with SMTP id w6so5384162lfl.2
+        for <admin@std9.os3.su>; Sun, 29 Sep 2019 11:57:41 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:from:date:message-id:subject:to;
+        bh=IKdniOZUD6tsb5GDObMpA0wAVhN9CSH8yUwv44iBd1U=;
+        b=e8OwANIJWUH3/+hYz1IXC3LYfc2ypraP2aHZiFuxmdERxRnSCYQWZC32q/zd8BXUxz
+         L631jDvdRaSQUZxygJp8ETYW8sOAtDWBE6SvavHf+xT3A6qwAznOzfccvV/2tABRxwgJ
+         wwVQ6eIcDuT2/sBlTNVqUsTYIlURz+x9DaE7IL75fUa/95/sBo3fx/hVDVeEqqrBvYKG
+         4lVeJTZiKOKBq6j32SmzCm0JG4WrQXlmOhJMjcDTh9I8e2FRuVkfID9EqKvH9OQ/jrUo
+         mnPRpA/HzVRCgffyfsKxqvHhOdkKlgyYTx2bLUaGyrN4FaXrNKOwIVd1JQ1df5IxDJje
+         FjAA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:from:date:message-id:subject:to;
+        bh=IKdniOZUD6tsb5GDObMpA0wAVhN9CSH8yUwv44iBd1U=;
+        b=KC2bWQbvqQSIHa3vpvv8SwpbxNuNsGlauVNUHQOwwO38l9bTrKI8826JCxkTXnGdJm
+         ZlWXyQUX68d5nWgQAAxLgZADRlDeW3r7a8t8RkZwdVFWkPqpARPuJ7m1mL9d5aF6mn3U
+         9nPdXPWQeuQOtG9xwZlCYq1UBlu1hMIZFZXDQmqjLIXl4kV8c3DR0MWY4Dy2VH48ih7h
+         zAur1REVy6+uUO5j6yeVv9VykLQQ6hQtzdDjxvmLfM60EKZF9vi6R/anRMyXojlZoPfD
+         rcTcqzbAObTkJnb7DI2PVygRKACZkg0auYDrxEW2ufme1KvghYC0yx7Q8gOxuNDIyt5X
+         9u0Q==
+X-Gm-Message-State: APjAAAVg5S7k4n5Duh8ih6+ZbKYQGxSjM7d9oodTdpdQKn/QYGadO4Ib
+	27TTcGsX0mtPV7vkDHu6Hc/QirwmibW9XjWwMdyNpA==
+X-Google-Smtp-Source: APXvYqzia5shwJPowtu3KS0BNwENjdsoL7TqvEHhlqYnord0Sn11b4tGmbqQu6lleDVu7E3w62no0K2ExiByDacdtiE=
+X-Received: by 2002:a19:c3d3:: with SMTP id t202mr9171871lff.48.1569783460678;
+ Sun, 29 Sep 2019 11:57:40 -0700 (PDT)
+MIME-Version: 1.0
+From: Artem Abramov <tematibr@gmail.com>
+Date: Sun, 29 Sep 2019 21:57:29 +0300
+Message-ID: <CAHWOQyi3pxDDKcyb+6cXZO1Qe0vr0-EtG6bt-U7Oq8=K9yenhQ@mail.gmail.com>
+Subject: Hello 3!
+To: admin@std9.os3.su
+Content-Type: multipart/alternative; boundary="0000000000008c4fd00593b5b125"
+
+--0000000000008c4fd00593b5b125
+Content-Type: text/plain; charset="UTF-8"
+
+This should go to backup 3.
+
+--0000000000008c4fd00593b5b125
+Content-Type: text/html; charset="UTF-8"
+
+<div dir="ltr">This should go to backup 3.<br></div>
+
+--0000000000008c4fd00593b5b125--
+```
 
 ### You provide backup
 #### Make your MX act as a backup for your colleague’s domain
+
+To make my server a backup for `std8` I added the following to my `main.cf` :
+
+```
+relay_domains = $mydestination, std8.os3.su
+relay_recipient_maps =
+```
+
+Then I restarted the postfix server.
+
+source: https://www.howtoforge.com/postfix_backup_mx
+
 #### Show the logs while doing your mate’s acceptance test and show where the message is temporarily stored.
+
+Then a message was sent to `aliakbar@std8.os3.su`. This message eventually made it to my server (i.e. it made it to the backup server, because Ali's server was down). The postfix log is shown below (`cat /var/log/mail.log`):
+
+```
+Sep 30 18:30:29 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[480]: connect from mail-lj1-f181.google.com[209.85.208.181]
+Sep 30 18:30:29 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[480]: Anonymous TLS connection established from mail-lj1-f181.google.com[209.85.208.181]: TLSv1.3 with cipher TLS_AES_128_GCM_SHA256 (128/128 bits)
+Sep 30 18:30:29 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[480]: EFFFDB614AA: client=mail-lj1-f181.google.com[209.85.208.181]
+Sep 30 18:30:30 artem-209-HP-EliteDesk-800-G1-SFF postfix/cleanup[485]: EFFFDB614AA: message-id=<CAHWOQyjKiKPe_PhDSPqSjUJk5q4AFcUwN6qviT1r6G2uO0r2ug@mail.gmail.com>
+Sep 30 18:30:30 artem-209-HP-EliteDesk-800-G1-SFF opendkim[18319]: EFFFDB614AA: s=20161025 d=gmail.com SSL
+Sep 30 18:30:30 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[32695]: EFFFDB614AA: from=<tematibr@gmail.com>, size=2586, nrcpt=1 (queue active)
+Sep 30 18:30:30 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtpd[480]: disconnect from mail-lj1-f181.google.com[209.85.208.181] ehlo=2 starttls=1 mail=1 rcpt=1 data=1 quit=1 commands=7
+Sep 30 18:30:30 artem-209-HP-EliteDesk-800-G1-SFF postfix/relay/smtp[486]: connect to mail.std8.os3.su[2600:cace:f000:6aaa:feed:beef:b000:1]:25: Network is unreachable
+Sep 30 18:30:30 artem-209-HP-EliteDesk-800-G1-SFF postfix/relay/smtp[486]: connect to mail.std8.os3.su[188.130.155.41]:25: Connection refused
+
+```
+
+We can see that my postfix installation attempted to connect to Ali's mail server at `[188.130.155.41]:25` but the connection was refused.
+
+The message ended up in the `deferred` queue on my machine:
+
+```
+:/var/spool/postfix/deferred# tree
+.
+├── 0
+├── 1
+├── 3
+├── 7
+├── 9
+├── A
+├── C
+├── D
+└── E
+    └── EFFFDB614AA
+```
+
+Its contents are shown below:
+
+![Selection_387](FIA-Lab-5-mail.assets/Selection_387.png)
+
 #### Once you colleague’s MX is back online, eventually force an immediate delivery and show your mail logs
+
+I executed:
+
+```
+$ sudo postqueue -f
+```
+
+The following was written to my postfix log:
+
+```
+Sep 30 18:30:30 artem-209-HP-EliteDesk-800-G1-SFF postfix/relay/smtp[486]: EFFFDB614AA: to=<aliakbar@std8.os3.su>, relay=none, delay=0.85, delays=0.17/0.01/0.66/0, dsn=4.4.1, status=deferred (connect to mail.std8.os3.su[188.130.155.41]:25: Connection refused)
+Sep 30 18:32:06 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[32695]: EFFFDB614AA: from=<tematibr@gmail.com>, size=2586, nrcpt=1 (queue active)
+Sep 30 18:32:07 artem-209-HP-EliteDesk-800-G1-SFF postfix/relay/smtp[486]: connect to mail.std8.os3.su[2600:cace:f000:6aaa:feed:beef:b000:1]:25: Network is unreachable
+Sep 30 18:32:07 artem-209-HP-EliteDesk-800-G1-SFF postfix/relay/smtp[486]: EFFFDB614AA: to=<aliakbar@std8.os3.su>, relay=mail.std8.os3.su[188.130.155.41]:25, delay=98, delays=97/0/0.62/0.26, dsn=2.0.0, status=sent (250 2.0.0 Ok: queued as 78FE914289C)
+Sep 30 18:32:07 artem-209-HP-EliteDesk-800-G1-SFF postfix/qmgr[32695]: EFFFDB614AA: removed
+```
+
+Which shows that the message was transferred successfully.
+
+source: https://serverfault.com/questions/279803/postfix-how-to-retry-delivery-of-mail-in-queue
 
 ## Task 3 - Mailing Loops
 ### Create an email loop within your colleague from domain to domain using email aliases.
 
-I created an alias pointing to rodrigo as shown below:
+I created an alias pointing to Rodrigo as shown below:
 
 ```
 $ cat /etc/aliases
@@ -1005,7 +1228,7 @@ Rodrigo created an alias for Rustam, and Rustam created an alias for me.
 I used the following command to send email to rodrigo:
 
 ```
-$ swaks --to rodry@std13.os3.su --protocol ESMTPS --from admin@std9.os3.su --ehlo mail.std9.os3.su --server mail.std9.os3.su
+$ swaks --to rodry@std13.os3.su --protocol ESMTPS --from postmaster@std9.os3.su --ehlo mail.std9.os3.su --server mail.std9.os3.su
 ```
 
 Below we can see that I get my logfile (`/var/log/mail.log`) with lines such as:
@@ -1014,11 +1237,9 @@ Below we can see that I get my logfile (`/var/log/mail.log`) with lines such as:
 Sep 29 16:10:26 artem-209-HP-EliteDesk-800-G1-SFF postfix/smtp[13888]: 596DCB614B5: to=<rodry@std13.os3.su>, orig_to=<postmaster@std9.os3.su>, relay=mail.std13.os3.su[188.130.155.46]:25, delay=1.4, delays=0.03/0/0.69/0.69, dsn=2.0.0, status=sent (250 OK id=1iEYy2-0003Gf-BH)
 ```
 
-So the orig_to is `postmaster@std9.os3.su` and the relay is `mail.std13.os3.su`. This is the email that I originally send to Rodrigo. Below is the screenshot of my log:
+So the `orig_to` is `postmaster@std9.os3.su` and the `relay` is `mail.std13.os3.su`. This is the email that I originally send to Rodrigo. Below is the screenshot of my log:
 
 ![artem@artem-209-HP-EliteDesk-800-G1-SFF: -usr-local-etc-nsd_372](FIA-Lab-5-mail.assets/artem@artem-209-HP-EliteDesk-800-G1-SFF%20-usr-local-etc-nsd_372.png)
-
-
 
 
 
@@ -1090,12 +1311,12 @@ subdom.std9.os3.su.	3600	IN	NS	ns0.std9.os3.su.
 
 Update the serial number and check format with:
 ```
-# ldns-read-zone -S YYYYMMDDxx std9.os3.su.zone.signed > std9.os3.su.zone.tmp
+# ldns-read-zone -S YYYYMMDDxx std9.os3.su.zone.signed > std9.os3.su.zone
 ```
 
 Check the contents:
 ```
-# cat std9.os3.su.zone.tmp 
+# cat std9.os3.su.zone 
 std9.os3.su.	3600	IN	SOA	ns0.std9.os3.su. admin.std9.os3.su. 2019092200 10800 3600 604800 38400
 subdom.std9.os3.su.	3600	IN	NS	ns0.std9.os3.su.
 www.std9.os3.su.	3600	IN	CNAME	notes.std9.os3.su.
@@ -1115,17 +1336,30 @@ std9.os3.su.	3600	IN	NS	ns0.std9.os3.su.
 ```
 
 
-Copy it to override the zone file:
-```
-# cp std9.os3.su.zone.tmp std9.os3.su.zone
-```
-
 Sign the zone again:
 ```
 # ldns-signzone -e $(date -d "1 month 2 days" "+%Y%m%d") std9.os3.su.zone Kstd9.os3.su.+013+59198 Kstd9.os3.su.+013+62425
 ```
 
-Modify the NSD config by adding the following:
+Create the new zonefile `subdom.std9.os3.su.zone`:
+
+```
+$ cat subdom.std9.os3.su.zone 
+$TTL 3600
+subdom.std9.os3.su.       IN      SOA     ns0.std9.os3.su. admin.subdom.std9.os3.su. (
+                        2019092200  ; Serial
+                        10800       ; Refresh
+                        3600        ; Retry
+                        604800      ; Expire
+                        38400 )     ; Negative Cache TTL
+; Nameserver records
+subdom.std9.os3.su      	IN	NS      ns0.std9.os3.su.
+subdom.std9.os3.su.		IN	MX	10 			mail.subdom.std9.os3.su.
+mail.subdom.std9.os3.su.   	IN      A       188.130.155.42
+```
+
+Modify the NSD config by appending the following information:
+
 ```
 zone:
  	name: "subdom.std9.os3.su"
@@ -1435,8 +1669,23 @@ Before encryption was enabled, sending mail from std9.os3.su to a gmail account 
 
 ![Selection_322](FIA-Lab-5-mail.assets/Selection_322.png)
 
+Certificates were generated with  `postfix tls new-server-cert`:
 
-First step is to enable opportunistic client encryption with STARTTLS:
+```
+$ sudo postfix tls new-server-cert
+postfix/postfix-tls-script: New private key and self-signed certificate created. To deploy run:
+postfix/postfix-tls-script:   # postfix tls deploy-server-cert /etc/postfix/cert-20190930-154622.pem /etc/postfix/key-20190930-154622.pem
+postfix/postfix-tls-script: To generate a CSR run:
+postfix/postfix-tls-script:   # postfix tls output-server-csr -k /etc/postfix/key-20190930-154622.pem [<hostname> ...]
+postfix/postfix-tls-script: Save the signed certificate chain in /etc/postfix/cert-20190930-154622.pem, and deploy as above.
+postfix/postfix-tls-script: To generate TLSA records run:
+postfix/postfix-tls-script:   # postfix tls output-server-tlsa [-h <hostname>] /etc/postfix/key-20190930-154622.pem
+```
+
+Then I moved the `/etc/postfix/cert-20190930-154622.pem` and `/etc/postfix/key-20190930-154622.pem`  to the `/etc/ssl/certs/` directory. I also renamed them to `ssl-cert-snakeoil.pem` and `ssl-cert-snakeoil.key`. I did this because I was following a guide.
+
+The next step is to enable opportunistic client encryption with STARTTLS:
+
 ```
 $ sudo postfix tls enable-client
 postfix/postfix-tls-script: *** Non-default SMTP client TLS settings detected, no changes made.
@@ -1447,7 +1696,10 @@ postfix/postfix-tls-script:   smtp_tls_loglevel = 1
 postfix/postfix-tls-script:   smtp_tls_session_cache_database = btree:${data_directory}/smtp_scache
 ```
 
+The command tells me that I have non standard configuration, therefore I had to copy the settings to my configuration file `main.cf` by hand.
+
 Then enable opportunistic server encryption:
+
 ```
 $ sudo postfix tls enable-server
 postfix/postfix-tls-script: *** Non-default SMTP server TLS settings detected, no changes made.
@@ -1464,7 +1716,9 @@ postfix/postfix-tls-script:   https://tools.ietf.org/html/rfc7671#section-5.2
 postfix/postfix-tls-script:   https://community.letsencrypt.org/t/please-avoid-3-0-1-and-3-0-2-dane-tlsa-records-with-le-certificates/7022
 ```
 
-Certificates were generated with  `postfix tls new-server-cert`  and added to the configuration `/etc/postfix/main.cfg` as shown below:
+This command also tells me that I have non standard configuration, therefore I also had to copy the settings to my configuration file `main.cf` by hand.
+
+Below is the summary of what was added to my postfix configuration `/etc/postfix/main.cfg` :
 
 ```
 # TLS parameters
@@ -1657,12 +1911,12 @@ Connection closed by foreign host.
 
 To debug, test and verify postfix mail see the official debugging tips: http://www.postfix.org/ADDRESS_REWRITING_README.html#debugging
 
-Therefore to test sending and receiving mail I will use another MUA that supports TLS. Unfortunately finding an adequate MUA proved more of a challenge than expected.
+Therefore to test sending and receiving mail I will use another MUA that supports TLS. Unfortunately finding an adequate MUA proved more of a challenge than expected. (At this point I did not know about the `swaks` utility, I only discovered it when doing task 6)
 1.	sendmail had some issue with TLS that I did not manage to resolve
 2.	mailx (from `mailutils` package) was painful to use after the simplicity of telnet
 3.	Thunderbird requiered that either IMAP or POP3 be configured. This meant installing and configuring yet another server to serve IMAP/POP3 such as Dovecot. I did not like this complexity.
 
-Finally I remembered about the excellent `smtplib` supplied with python3. The script below replaces telnet and provides the necessary STARTTLS support:
+Finally I remembered about the  `smtplib` supplied with python3. The script below replaces telnet and provides the necessary STARTTLS support:
 ```python
 import smtplib
 
@@ -2375,7 +2629,7 @@ The best service to use for verifying is https://www.mail-tester.com/. However i
 
 
 
-The next step is making sure that my server verifies the DKIM signature of the incoming emails. Here is an example mail I received from a friend's gmail account:
+The next step is making sure that **my** server verifies the DKIM signature of the **incoming** emails. Here is an example mail I received from a friend's gmail account:
 
 ```
 From aragornynn@gmail.com  Sun Sep 29 19:02:32 2019
@@ -2526,11 +2780,12 @@ One approach would be to get the certificate signed by a CA such as Let's Encryp
 
 What is a certificate? It combines the name of a physical person (or an organisation) with its private key. The certificate is signed (i.e. hash of the `organisation name` + `organisation public key` is calculated and that hash is encrypted with a private key). 
 
-So who signs the certificate? A Certificate Authority which is a third party organisation. The certificate authority is trusted by with OS and browser vendors. Becasue you use the OS and the browser it means you trust them, thus you implicitly trust the CA's. What do you trust them to do? You trust them to validate the organisation before issuing a certificate to that organisation. What does it mean to validate? They make sure that the organisation that applied to have its name connected to a domain and a public key, indeed owns the domain. How do they validate the organisation? By checking that the organisation owns the domain
+So who signs the certificate? A Certificate Authority which is a third party organisation. The certificate authority is trusted by with OS and browser vendors. Because you use the OS and the browser it means you trust them, thus you implicitly trust the CA's. What do you trust them to do? You trust them to validate the organization before issuing a certificate to that organization. What does it mean to validate? The CA makes sure that the organization applying to have its name connected to a domain and a public key, indeed owns the domain. How do they validate the organisation? By checking that the organisation owns the domain.
 
-the computer user uses the OS and the browser 
+This step can be short circuited with DANE. DANE is a way to of connecting the certificate to the domain name. This is done by publishing a TLSA record.
 
-The format for storing a certificate is x509. It is a binary format. For easier distribution the certificate is normally base-64 encoded and surrounded with lines 
+The admin of the server generates a key (a private key and a certificate). This certificate is self-signed. The format for storing a certificate is x509. It is a binary format. For easier distribution the certificate is normally base-64 encoded and surrounded with lines 
+
 ```
 -----BEGIN CERTIFICATE-----
 ```
@@ -2542,14 +2797,7 @@ and
 More info on certificates  and its byte-by-byte analysis: 
 https://github.com/ajanicij/x509-tutorial/blob/master/x509-analysis.md
 
-
-
-
-The certificate is signed 
-
-http://www.moserware.com/2009/06/first-few-milliseconds-of-https.html
-
-https://github.com/ajanicij/x509-tutorial/blob/master/x509-analysis.md
+An example certificate is shown below: 
 
 
 ```
@@ -2675,3 +2923,57 @@ LV7Xq47alFBvD8nLARX9mqLFXjaiMNLPihX/Oo3AJd+kXuDeJz6igUsf9UeIcbRc
 ```
 
 
+
+In my case I wanted to secure my mail. So I took the certificate that I was already using in postfix config to encrypt my mail, located at `/etc/ssl/certs/ssl-cert-snakeoil.pem`. Then I used an online tool to generate an appropriate TLSA entry as shown below:
+
+![Selection_388](FIA-Lab-5-mail.assets/Selection_388.png)
+
+And the result is shown below:
+
+![Selection_389](FIA-Lab-5-mail.assets/Selection_389.png)
+
+So I copied the TLSA record to my `std9.os3.su.zone` file and resigned the zone. Here is the resulting zone file (not signed yet):
+
+```
+$ cat /usr/local/etc/nsd/std9.os3.su.zone
+std9.os3.su.	3600	IN	SOA	ns0.std9.os3.su. admin.std9.os3.su. 2019092900 10800 3600 604800 38400
+www.std9.os3.su.	3600	IN	CNAME	notes.std9.os3.su.
+tst.std9.os3.su.	3600	IN	AAAA	2400:6180:100:d0::8c4:9001
+tst.std9.os3.su.	3600	IN	A	68.183.92.166
+subdom.std9.os3.su.	3600	IN	NS	ns0.std9.os3.su.
+ns0.std9.os3.su.	3600	IN	A	188.130.155.42
+notes.std9.os3.su.	3600	IN	CNAME	temach.github.io.
+_25._tcp.mail.std9.os3.su.	3600	IN	TLSA	3 0 1 dd1a910a046a841b553f0bc42d7789554e1679a2307f367aa5685eb3dc72180f
+mail.std9.os3.su.	3600	IN	A	188.130.155.42
+lab.std9.os3.su.	3600	IN	A	188.130.155.42
+ansible.std9.os3.su.	3600	IN	AAAA	2a00:b700::6:220
+ansible.std9.os3.su.	3600	IN	A	185.22.153.49
+_25._tcp.std9.os3.su.	3600	IN	TLSA	3 0 1 dd1a910a046a841b553f0bc42d7789554e1679a2307f367aa5685eb3dc72180f
+mail._domainkey.std9.os3.su.	3600	IN	TXT	"v=DKIM1; h=sha256; k=rsa; t=y; " "p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx3I/m/OcpD5i9dd1cfoFugnVKEuJD3e+BF/nx1bx3s5HPZ9rWFzeT+sllPnE2vaGoB3RRVyB4l9F7pm/UP5ivlDeH8sIvercqwMEDY8TvqJS7Wa8xH8wJHEQ2sGZ0YxGOEzAa76T2tF16cf/V++x0Snzzak1q8A1xt2MGlCEnAOS5Vh0lBtykHg2oihwl+yFtwa93w/xzPeRjB" "G5y0ddK10aURWeQMgAVnAf/7bqA7YkujyOVQuHRx1XtNkZe+IZxhTVhFMS2ii/UZrvo+Fbo92B98OConORmyJwrWt6jul0Th9AFdB3LMRhhv72y7g5mpwDFT08eqjqABSIWb/WTwIDAQAB"
+std9.os3.su.	3600	IN	DNSKEY	257 3 13 ZP8yUKKmSdi8H03m2Pzynh8nTyis1LV72Bmf+ZBbdS0/bBoVIVIBEJ3uYPGMoOlu7kbybMNfLRW1kKRvb6Gv5g== ;{id = 59198 (ksk), size = 256b}
+std9.os3.su.	3600	IN	DNSKEY	256 3 13 tMVV1aZA+72bTZUh53xB12Xl/dsxcGR5W/aIeZ3+rzSceq3WT88CitEzzcaC8dwcJ2jtZlFXmDRGnf55f6RgVw== ;{id = 62425 (zsk), size = 256b}
+std9.os3.su.	3600	IN	MX	10 mail.std9.os3.su.
+std9.os3.su.	3600	IN	MX	20 mail.std4.os3.su.
+std9.os3.su.	3600	IN	NS	ns0.std9.os3.su.
+```
+
+And here is the signed version (only showning TLSA configuration):
+
+```
+_25._tcp.mail.std9.os3.su.	3600	IN	TLSA	3 0 1 dd1a910a046a841b553f0bc42d7789554e1679a2307f367aa5685eb3dc72180f
+_25._tcp.mail.std9.os3.su.	3600	IN	RRSIG	TLSA 13 6 3600 20191031000000 20190929183339 62425 std9.os3.su. DsfMGG2665RKzDLreGQfgUR6kt94Fs34bGPydXxT8dl0VUOx3ryKGAiCvVhxy9Yfq6nUAqWAT8/zLY11gZLJ+Q==
+_25._tcp.mail.std9.os3.su.	38400	IN	NSEC	notes.std9.os3.su. RRSIG NSEC TLSA 
+_25._tcp.mail.std9.os3.su.	38400	IN	RRSIG	NSEC 13 6 38400 20191031000000 20190929183339 62425 std9.os3.su. 4UCP45cubtDq0jA917ad/xbwjNnIXsP0Oxm8Xb5EVc6w51e/uF/Ur7resuNDlRZrcoozpgbWHolg3fvTxNEq7Q==
+```
+
+Then I checked that domain had DANE configured for SMTP as shown below:
+
+![Selection_390](FIA-Lab-5-mail.assets/Selection_390.png)
+
+And another test:
+
+![Selection_391](FIA-Lab-5-mail.assets/Selection_391.png)
+
+
+
+source:  http://www.moserware.com/2009/06/first-few-milliseconds-of-https.html
