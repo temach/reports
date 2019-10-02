@@ -2751,6 +2751,8 @@ sources:
 
 1.	https://easyengine.io/tutorials/mail/dkim-postfix-ubuntu/
 2.	https://wiki.archlinux.org/index.php/OpenDKIM
+3.	https://postmarkapp.com/guides/dkim
+4.	https://postmarkapp.com/guides/dmarc
 
 ## Appendix
 
