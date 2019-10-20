@@ -1747,11 +1747,15 @@ DocumentRoot "/www"
 
 This means that only visitors with IPs from the  US or RU will be allowed to see sites inside `/www`.
 
-The next step was downloading the Country database from https://dev.maxmind.com/geoip/geoip2/geolite2/ and unpacking the database file into `/usr/local/share/GeoIP/GeoLite2-Country.mmdb`.
+The last step was downloading the Country database from https://dev.maxmind.com/geoip/geoip2/geolite2/ and unpacking the database file into `/usr/local/share/GeoIP/GeoLite2-Country.mmdb`.
 
 sources: http://httpd.apache.org/docs/2.4/howto/access.html
 
-Then I restarted apache. I installed the AnonymoX extension and tried to access the site from Netherlands:
+Then I restarted apache. 
+
+
+
+To verify that GeoIP was working  installed the AnonymoX extension and tried to access the site from Netherlands:
 
 ![Selection_403](FIA-Lab-6-webserver.assets/Selection_403.png)
 
