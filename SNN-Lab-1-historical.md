@@ -34,6 +34,7 @@ Example encryption is shown below:
 sources:
 
 	1. The CodeBook software
+
  	2. https://en.wikipedia.org/wiki/Affine_cipher
 
 
