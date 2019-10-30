@@ -1252,10 +1252,11 @@ Which is a real shame, because it was difficult to get this Cisco image working 
 
 sources:
 
-1. Cisco configuration update main document: https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/mp_l2_vpns/configuration/xe-16/mp-l2-vpns-xe-16-book/configuring-virtual-private-lan-services.html
-2. Cisco configuring VPLS (main document): https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst6500/ios/15-0SY/configuration/guide/15_0_sy_swcg/vpls.pdf
-3. Configuration commands: https://www.cisco.com/c/en/us/td/docs/ios_xr_sw/iosxr_r3-7/mpls/configuration/guide/gc37vpls.html
-4. Cisco configuring VPN: https://www.cisco.com/c/en/us/support/docs/multiprotocol-label-switching-mpls/mpls/13733-mpls-vpn-basic.html
+1. Cisco configuration updated page: https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/mp_l2_vpns/configuration/xe-16/mp-l2-vpns-xe-16-book/configuring-virtual-private-lan-services.html
+2. Yet another configuration guide: https://www.cisco.com/c/en/us/td/docs/ios-xml/ios/mp_l2_vpns/configuration/xe-3s/mp-l2-vpns-xe-3s-book/mp-vpls.html
+3. Cisco configuring VPLS pdf book: https://www.cisco.com/c/en/us/td/docs/switches/lan/catalyst6500/ios/15-1SY/config_guide/sup2T/15_1_sy_swcg_2T/vpls.pdf
+4. Configuration commands: https://www.cisco.com/c/en/us/td/docs/ios_xr_sw/iosxr_r3-7/mpls/configuration/guide/gc37vpls.html
+5. Cisco configuring VPN: https://www.cisco.com/c/en/us/support/docs/multiprotocol-label-switching-mpls/mpls/13733-mpls-vpn-basic.html
 
 
 
@@ -1267,9 +1268,9 @@ R1:
 R1#show run
 Building configuration...
 
-Current configuration : 1529 bytes
+Current configuration : 1562 bytes
 !
-! Last configuration change at 07:59:13 UTC Mon Oct 28 2019
+! Last configuration change at 12:16:44 UTC Tue Oct 29 2019
 !
 version 15.2
 service timestamps debug datetime msec
@@ -1296,9 +1297,12 @@ no ipv6 cef
 !         
 !         
 mpls label protocol ldp
-mpls ldp password required for 1
-mpls ldp password option 1 for 1 artemldp
+mpls ldp password required for 10
+mpls ldp password option 1 for 10 artemldp
 multilink bundle-name authenticated
+l2vpn     
+ router-id 255.255.255.1
+!         
 !         
 !         
 !         
@@ -1398,6 +1402,7 @@ line vty 0 4
 !         
 !         
 end       
+      
         
 ```
 
@@ -1409,9 +1414,9 @@ R2:
 R2#show run
 Building configuration...
 
-Current configuration : 1548 bytes
+Current configuration : 1581 bytes
 !
-! Last configuration change at 06:45:59 UTC Mon Oct 28 2019
+! Last configuration change at 12:14:43 UTC Tue Oct 29 2019
 !
 version 15.2
 service timestamps debug datetime msec
@@ -1438,9 +1443,12 @@ no ipv6 cef
 !         
 !         
 mpls label protocol ldp
-mpls ldp password required for 1
-mpls ldp password option 1 for 1 artemldp
+mpls ldp password required for 10
+mpls ldp password option 1 for 10 artemldp
 multilink bundle-name authenticated
+l2vpn     
+ router-id 255.255.255.2
+!         
 !         
 !         
 !         
@@ -1540,20 +1548,21 @@ line vty 0 4
 !         
 !         
 end       
-    
+
+   
 ```
 
 
 
-R3:
+R3: 
 
 ```
 R3#show run
 Building configuration...
 
-Current configuration : 1532 bytes
+Current configuration : 1565 bytes
 !
-! Last configuration change at 06:48:51 UTC Mon Oct 28 2019
+! Last configuration change at 12:15:50 UTC Tue Oct 29 2019
 !
 version 15.2
 service timestamps debug datetime msec
@@ -1583,6 +1592,9 @@ mpls label protocol ldp
 mpls ldp password required for 10
 mpls ldp password option 1 for 10 artemldp
 multilink bundle-name authenticated
+l2vpn     
+ router-id 255.255.255.3
+!         
 !         
 !         
 !         
@@ -1681,8 +1693,7 @@ line vty 0 4
  login    
 !         
 !         
-end       
-      
+end     
 ```
 
 
@@ -1693,9 +1704,9 @@ R4:
 R4#show run
 Building configuration...
 
-Current configuration : 1532 bytes
+Current configuration : 1565 bytes
 !
-! Last configuration change at 06:47:14 UTC Mon Oct 28 2019
+! Last configuration change at 12:13:01 UTC Tue Oct 29 2019
 !
 version 15.2
 service timestamps debug datetime msec
@@ -1725,6 +1736,9 @@ mpls label protocol ldp
 mpls ldp password required for 10
 mpls ldp password option 1 for 10 artemldp
 multilink bundle-name authenticated
+l2vpn     
+ router-id 255.255.255.4
+!         
 !         
 !         
 !         
@@ -1824,6 +1838,7 @@ line vty 0 4
 !         
 !         
 end       
-    
+          
+
 ```
 
