@@ -345,6 +345,8 @@ Finally the stage 2 resides on an actual filesystem and is a collection of code 
 ##### (b) Where is the configuration kept for the started process?
 ##### \(c\) It starts multiple processes. How is the order of execution defined?
 
+More detailed information is available here: https://0xax.gitbooks.io/linux-insides/content/Booting/
+
 I will describe the boot process of Ubuntu 18.04, because that is the distribution I have available.
 
 The kernel image isn't a simple executable, but a compressed kernel image. Typically this is a zImage (compressed image, less than 512KB) or a bzImage (big compressed image, greater than 512KB). The bzImage is also called  vmlinuz on Ubuntu.
