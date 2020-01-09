@@ -434,7 +434,7 @@ The entries start at byte 0x400 from the start of disk. That is after two sector
 
 #### At what byte index would the partition table start if your server had a so-called “4K native” (4Kn) disk?
 
-If we would have used a 4K native disk then the sector size would be 4096 bytes. The entries would start (in the same manner as for a "normal" disk) after the first two sectors, that is after 8192 bytes, which in hex is offset 0x2000.
+If we would have used a 4K native disk then the sector size would be 4096 bytes. The entries would start (in the same manner as for a "normal" disk) after the first two sectors, that is after 8192 bytes, which in hex is offset 0x2000. See also: https://en.wikipedia.org/wiki/Advanced_Format
 
 ### 2. If you wanted to add a (1 + your table number) GiB FreeBSD ZFS partition, called ØS3 (U+00D8U+015A U+0033) to the table by hand, what values would you have to use for the entry (including the name) in the raw table on disk? Assume the disk is large enough to hold the extra partition. Until recently, machines would have a BIOS and boot from an MBR.
 
