@@ -222,6 +222,8 @@ source: https://www.yourcomputer.in/guid-partition-table/
 
 In reality the disk controller keeps additional information on disk for each sector called the sector header (source: https://en.wikipedia.org/wiki/Disk_sector) which includes sync bytes, address identification, flaw flag and error detection and correction information aka ECC. So each sector has a header and 512 bytes of user data, thus a 1 terabyte disk will only have around 87% for user data i.e. 1953525168 sectors instead of theoretical 2147483648.
 
+My disk has logical size of 512 and physical size of 4096 because it is 4K native enabled, but has a compatiability layer for older OSes or older disk utilities (source: https://wiki.archlinux.org/index.php/Advanced_Format)
+
 Each GPT partition entry takes up 128 bytes. In my disk I only have 4 partitions. Therefore to dump protective MBR (which is in the first 512 bytes of the GPT disk) and GPT structured to a file only the first `(128 * 4) + 1024 = 1536` bytes of the disk need to be read. This is 3 sectors of 512 bytes each. 
 source: https://askubuntu.com/questions/57908/how-can-i-quickly-copy-a-gpt-partition-scheme-from-one-hard-drive-to-another
 
