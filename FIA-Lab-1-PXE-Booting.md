@@ -220,6 +220,10 @@ Lets take the disk sector as 512 byte in size. Lets take the disk size to be exa
 
 source: https://www.yourcomputer.in/guid-partition-table/
 
+In reality the disk controller keeps additional information on disk for each sector called the sector header (source: https://en.wikipedia.org/wiki/Disk_sector) which includes sync bytes, address identification, flaw flag and error detection and correction information aka ECC. So each sector has a header and 512 bytes of user data, thus a 1 terabyte disk will only have around 87% for user data i.e. 1953525168 sectors instead of theoretical 2147483648.
+
+My disk has logical size of 512 and physical size of 4096 because it is 4K native enabled, but has a compatiability layer for older OSes or older disk utilities (source: https://wiki.archlinux.org/index.php/Advanced_Format)
+
 Each GPT partition entry takes up 128 bytes. In my disk I only have 4 partitions. Therefore to dump protective MBR (which is in the first 512 bytes of the GPT disk) and GPT structured to a file only the first `(128 * 4) + 1024 = 1536` bytes of the disk need to be read. This is 3 sectors of 512 bytes each. 
 source: https://askubuntu.com/questions/57908/how-can-i-quickly-copy-a-gpt-partition-scheme-from-one-hard-drive-to-another
 
@@ -434,7 +438,7 @@ The entries start at byte 0x400 from the start of disk. That is after two sector
 
 #### At what byte index would the partition table start if your server had a so-called “4K native” (4Kn) disk?
 
-If we would have used a 4K native disk then the sector size would be 4096 bytes. The entries would start (in the same manner as for a "normal" disk) after the first two sectors, that is after 8192 bytes, which in hex is offset 0x2000.
+If we would have used a 4K native disk then the sector size would be 4096 bytes. The entries would start (in the same manner as for a "normal" disk) after the first two sectors, that is after 8192 bytes, which in hex is offset 0x2000. See also: https://en.wikipedia.org/wiki/Advanced_Format
 
 ### 2. If you wanted to add a (1 + your table number) GiB FreeBSD ZFS partition, called ØS3 (U+00D8U+015A U+0033) to the table by hand, what values would you have to use for the entry (including the name) in the raw table on disk? Assume the disk is large enough to hold the extra partition. Until recently, machines would have a BIOS and boot from an MBR.
 
