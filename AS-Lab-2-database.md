@@ -6,7 +6,16 @@
 
 ## 1. Install a DBMS that can perform column level encryption and database level encryption (f.e MySQL).
 
-I installed the DB with docker. For this I used the MySQL image from docker hub. 
+I installed the DB with docker. 
+
+I use the following mysql version:
+
+```
+mysql  Ver 8.0.19 for Linux on x86_64 (MySQL Community Server - GPL)
+```
+
+For this I used the MySQL image from docker hub. 
+
 ```
 docker run --name mysql-db -p 3306:3306 -p 33060:33060 -e MYSQL_ROOT_PASSWORD=artem -d mysql
 ```
@@ -444,3 +453,197 @@ Bartonhaven
 
 
 
+### Apply transparent database encryption and see how does encryption affects  standard queries and the content of the database files.
+
+Applying the encryption was slightly complicated because of docker containers. 
+
+There is no clean way to restart mysqld which is inside the docker container (no systemd or service files). Therefore to apply any startup config the strategy is to edit the config on host and bind mount the direcotry to docker container.
+
+In a running docker container (to get the permissions and rights correctly) create:
+
+```
+cd /etc/mysql
+mkdir keyring
+chmod 750 keyring
+touch keyring/file
+chown mysql:mysql -R keyring
+```
+
+source: https://dev.mysql.com/doc/refman/8.0/en/keyring-system-variables.html#sysvar_keyring_file_data
+
+Copy `/etc/mysql` directory from docker container to localhost:
+
+```
+docker cp mysql-db-2:/etc/mysql ~/Downloads/mysql-db-etc-mysql
+```
+
+Edit `my.cnf`, add lines:
+
+```
+[mysqld]
+early-plugin-load=keyring_file.so
+keyring_file_data=/etc/mysql/keyring/file
+```
+
+Run docker and bind mount the directory:
+
+```
+docker run --name mysql-db-2 -v ~/Downloads/mysql-db-etc-mysql:/etc/mysql -e MYSQL_ROOT_PASSWORD=artem -d mysql
+```
+
+Now the encryption starts working, check against the db in the container:
+
+```
+mysql> SELECT PLUGIN_NAME, PLUGIN_STATUS
+    ->        FROM INFORMATION_SCHEMA.PLUGINS
+    ->        WHERE PLUGIN_NAME LIKE 'keyring%';
++--------------+---------------+
+| PLUGIN_NAME  | PLUGIN_STATUS |
++--------------+---------------+
+| keyring_file | ACTIVE        |
++--------------+---------------+
+1 row in set (0.00 sec)
+
+```
+
+Check plugins that `keyring_file` is present:
+
+```
+mysql> show plugins;
+```
+
+##### Now supposedly encryption is working, lets test it.
+
+
+Export db data from old container (I should have used docker volumes from the start!):
+
+```
+docker exec mysql-db sh -c 'exec mysqldump --all-databases -uroot -p"$MYSQL_ROOT_PASSWORD"' > ~/Downloads/all-db.sql
+```
+And load the data into the new container:
+
+
+```
+docker exec -i mysql-db-2 sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD"' < ~/Downloads/all-db.sql
+```
+
+
+Duplicate the table before enabling encryption on it:
+```
+mysql> create table test_encypt as select * from test;
+```
+
+Finally enable encryption for the test_encrypt table:
+
+```
+mysql> alter table test_encypt ENCRYPTION='y';
+```
+
+To enable encryption by default we can use: 
+
+```
+mysql> SET GLOBAL default_table_encryption=ON;
+```
+
+
+
+Check the files on the drive, run strings against the encrypted db:
+
+```
+root@854f318513bb:/var/lib/mysql# strings test/test_encypt.ibd | head   
+9f323ca4-464d-11ea-bc82-0242ac110004
+j{Xw2
+@Lv1LVq
+LRb`
+EKOh
+-CPYH
+_7-C
+|#xAn
+i_r~%?J
+'_dZ
+```
+
+The file is encrypted!
+
+Running a query on unencrypted table:
+
+```
+mysql> select * from test where name like '%a%' and age > 5;
+```
+
+Results: 26264 rows in set (0.05 sec)
+
+Running on encrypted table:
+
+```
+mysql> select * from test_encypt where name like '%a%' and age > 5;
+```
+
+Results: 26264 rows in set (0.06 sec)
+
+So queries work the same, but it takes slightly longer on encrypted data.
+
+sources: 
+
+- https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html#innodb-data-encryption-encryption-prerequisites
+- https://dev.mysql.com/doc/refman/8.0/en/keyring-file-plugin.html
+- https://dev.mysql.com/doc/refman/8.0/en/keyring-system-variables.html#sysvar_keyring_file_data
+
+
+
+### 9) What are the possible encryption algorithms supported in your selected DBMS? Which algorithm would you prefer and why?
+
+I use the following mysql version:
+
+```
+mysql  Ver 8.0.19 for Linux on x86_64 (MySQL Community Server - GPL)
+```
+
+The only supported encryption algorithm is AES with different key sizes. source: https://dev.mysql.com/doc/refman/8.0/en/encryption-functions.html#function_aes-encrypta
+
+Its also possible to use different block encryption modes:  ECB, CBC, CFB1, CFB8, CFB128, OFB.
+
+My favor goes to AES with CBC mode even though it requires an init vector (more fuss to use). CBC provides better security against data tempering because it ties the blocks together. And there is no other option appart from AES.
+
+
+
+## 10) What are the vulnerabilities (attack vectors) you could have with this  approach? Can you get the plain text from encrypted data in a way?
+
+The usual attacks against encryption apply: dictionary, rainbow tables. 
+
+Because we are using a db its possible that traces of the key could be found somewhere in the database, for example in the command line history.
+
+To get the text back from encrypted data, the AES_DECRYPT function could be used.
+
+
+
+### 11) Compare no-encryption, column-level encryption and transparent database encryption in terms of performance. (e.g. run simple select statements on the large database you generated)
+
+
+
+
+
+## 12) What are the advantages and disadvantages of application level encryption?
+
+Disadvantages:
+
+- User must manage his keys, this is more complex in scenarios such as  telegram app where clients on different platforms must have access to the same key. (interestingly in telegram and in watsapp I suppose the user's private key that was generated on the mobile phone gets copied to the laptop/PC where the desktop app runs, not really a secure scheme!)
+- Loosing the key means loosing the data, no standard recovery procedure.
+- Database becomes composed of binary blobs, this means if user wants to search his encrypted data for some string or pattern the search will be slow because all the blobs will need to be downloaded to the user app and decrypted. If encryption was at DB level the DB could do the search instead of the user.
+- More work for application developers, possibly more bugs across different apps. Its easier to secure one DB product.
+
+Advantages:
+
+- Some solid guarantees about user privacy!
+- Less work for DB admin.
+- In response to user query data can be sorted and filtered on the backend, therefore its possible to optimize what gets transmitted over the wire, meaning faster service of users.
+
+
+
+## 13) Consider the python simple app (app is inside zip archive) with naive usage of application level encryption and describe issues that you can find. What improvements can be made?
+
+The first issue is that the password for data encryption is stored in plain text in the source code, this should be stored in some encrypted file and user should be prompted to enter decryption key for file.
+
+There is no error handling, what if data is tampered with and decoding fails? The output text will be garbage.
+
+The AES module uses ECB encryption (**electronic code book**) because blocks are not linked together its possible to carry out a substitution or rearrangement attack on one of the block.
