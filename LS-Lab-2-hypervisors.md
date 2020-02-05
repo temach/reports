@@ -100,7 +100,7 @@ xentoollog_stubs.c:123:16: error: initialization discards 'const' qualifier from
 ```
 Solution to error was to disable -Werror in `tools/ocaml/common.make`.
 
-
+I used the default configuration, it was pretty general, but changed install path from `/boot/efi` to `/boot`.
 
 The only good part of compiling is the ascii logo (with high version numbers):
 
@@ -132,3 +132,6 @@ make -f /home/build/xen/src/xen-4.12.2/xen/Rules.mk -C include
 make[3]: Entering directory '/home/build/xen/src/xen-4.12.2/xen
 ```
 
+
+
+Then we extract the files from docker with `docker cp build-xen:/home/build/xen ~/Downloads/xen ` and run make install on the actual host own system. Risky trick, but it works and does not pollute the host with a ton of build dependencies.
