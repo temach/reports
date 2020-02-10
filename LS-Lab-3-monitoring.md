@@ -264,7 +264,19 @@ Then the slave machine should be visible:
 
 
 
-To check what network Zabbix server can see, go to Monitoring -> Discovery. You can configure discovery in Configuration -> Discovery. For example configure to scan LAN network `10.1.1.0/24` once an hour with ICMP ping:
+To check what network Zabbix server can see, go to 
+
+```
+Monitoring -> Discovery
+```
+
+You can configure discovery in 
+
+```
+Configuration -> Discovery
+```
+
+For example configure to scan LAN network `10.1.1.0/24` once an hour with ICMP ping:
 
 ![Selection_005](LS-Lab-3-monitoring.assets/Selection_005.png)
 
@@ -284,18 +296,102 @@ Problems overview, the report is pretty detailed:
 
 ## Task 2 - Status alerts
 
-- against the guest system itself (ping)
-- against available RAM or disk space (with threshold about 90%)
+### - against the guest system itself (ping)
 
-Setup is shown below:
+### - against available RAM or disk space (with threshold about 90%)
 
-![Selection_010](LS-Lab-3-monitoring.assets/Selection_010.png)
-
-
-
-The MEMORY.UTIL.MAX = 90 and VFS.FS.PUSHED.MAX.CRIT = 90 are responsible for alerts on 90% usage of RAM and storage respectively. Ping warns if the responce time is longer than 0.15 or if the service is down for 20
-
+To quickly configure many of the default parameters I applied two templates to a slave machine:
+```
+Configuration -> Hosts -> [hostname] -> Templates
+```
+![Selection_011](LS-Lab-3-monitoring.assets/Selection_011.png)
 
 
 
+Looking at the Module ICMP Ping template we can see that it sets up ping triggers (i.e. alerts):
+
+![Selection_012](LS-Lab-3-monitoring.assets/Selection_012.png)
+
+
+
+The alerts for RAM and storage are already configured. Below is an example graph for disk io performace:
+
+![Selection_013](LS-Lab-3-monitoring.assets/Selection_013.png)
+
+
+
+When that time overcomes the threshold `[> 20]`  notification will appear on main dashboard `Disk I/O is overloaded on Zabbix server`:
+
+![Selection_014](LS-Lab-3-monitoring.assets/Selection_014.png)
+
+The multiple problems related to guest (change of hostname and /etc/passwd) are because I moved the zabbix-agent from a normal install into a docker container. 
+
+
+
+When the problem is resolved (due to whatever reason) a new notification will pop-up as below:
+
+![Selection_015](LS-Lab-3-monitoring.assets/Selection_015.png)
+
+
+
+
+
+### - against the web service
+
+### - and against two web pages, a simple one and the heavy-duty one
+
+source: https://www.zabbix.com/documentation/4.0/manual/web_monitoring
+
+Final config for the web check (see link above for details) 
+```
+Configuration -> Hosts -> [hostname] -> Web scenarios -> Create web scenario
+```
+
+![Selection_016](LS-Lab-3-monitoring.assets/Selection_016.png)
+
+And query URL's are below, visible in the `Steps` tab:
+
+![Selection_017](LS-Lab-3-monitoring.assets/Selection_017.png)
+
+
+
+Then I created a graph 
+
+```
+Configuration -> Hosts -> [hostname] -> Graphs -> Create Graph
+```
+
+![Selection_018](LS-Lab-3-monitoring.assets/Selection_018.png)
+
+
+
+Setup trigger to fire when web service goes down. 
+
+```
+Configuration -> Hosts -> [hostname] ->Triggers -> Create trigger
+```
+
+![Selection_021](LS-Lab-3-monitoring.assets/Selection_021.png)
+
+
+
+Once I stopped the server the error appeared response was almost immediate because I had set 2 seconds check interval when configuring the `Test python http server` Web check:
+
+![Selection_020](LS-Lab-3-monitoring.assets/Selection_020.png)
+
+
+
+After starting the web server error was resolved:
+
+![Selection_023](LS-Lab-3-monitoring.assets/Selection_023.png)
+
+
+
+We can see the graph of access time to web server the gap on the right is when it was offline:
+
+![Selection_024](LS-Lab-3-monitoring.assets/Selection_024.png)
+
+
+
+I did the same config for the heavy web server, basically the only thing that changed is the port. For the light web server it was port 8000, for the heavy it was 8080.
 
