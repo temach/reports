@@ -249,3 +249,206 @@ I have really spend a lot of time on this lab, and while there was a lot of tech
 
 In retrospect I should have taken an easier option, and used the packaged Xen, ignoring the bonus, but getting the core of the lab finished.
 
+
+
+==================================
+
+
+
+## Deadline was extended and here is how to setup Xen and guests on Ubuntu.
+
+Install
+
+```
+apt-get install xen-system-amd64
+```
+
+Edit command line options, at least set memory for dom0 in `/etc/default/grub.d/xen.cfg`:
+
+```
+artem@labubuntu:~$ cat /etc/default/grub.d/xen.cfg 
+GRUB_CMDLINE_XEN_DEFAULT="dom0_mem=4096M:max=4096M"
+```
+
+After editing update the cached grub config:
+
+```
+sudo update-grub
+```
+
+Basically switch networking to manual mode (can be done after reboot):
+
+```
+systemctl disable NetworkManager
+systemctl disable systemd-networkd
+systemctl disable systemd-resolved
+```
+
+Reboot now
+
+```
+systemctl reboot
+```
+
+Remove the now useless rm /etc/resolv.conf (its a broken symlink after disabling systemd-resolved) and make a plain file in its place with `nameserver 8.8.8.8`.
+
+Make script to setup `xenbr0` note that ip belongs to the bridge NOT to ethernet interface:
+
+```
+artem@labubuntu:~$ cat mkbridge.sh 
+#!/bin/bash
+ip link set enp0s25 down
+ip addr flush dev enp0s25
+ip link add name xenbr0 type bridge
+ip link set enp0s25 master xenbr0
+ip link set enp0s25 up
+ip link set xenbr0 up
+dhclient xenbr0
+```
+
+
+
+#### Now configure a single guest
+
+source: https://www.virtuatopia.com/index.php/Building_a_Debian_or_Ubuntu_Xen_Guest_Root_Filesystem_using_debootstrap
+
+Make virtual harddrive (note count=1):
+
+```
+dd if=/dev/zero of=guest1.img bs=1024k seek=6144 count=1
+```
+
+```
+mkfs -t ext4 guest1.img
+```
+
+
+
+Make swap (note count=0):
+
+```
+dd if=/dev/zero of=guest1.swap bs=1024k seek=1024 count=0
+```
+
+```
+mkswap guest1.swap
+```
+
+
+
+Now make Xen config for this drive (xen <= 4.9 uses `builder="pv/hvm/pvh"`, xen >= 4.10 use `type=`:
+
+```
+artem@labubuntu:~$ cat guest1.cfg 
+name="guest1"
+vcpus=1
+memory=1024
+builder="pv"
+disk = ['tap:aio:/home/artem/guest1.img,xvdb1,w', 'tap:aio:/home/artem/guest1.swap,xvdb2,w']
+kernel="/boot/vmlinuz-5.3.0-28-generic"
+ramdisk="/boot/initrd.img-5.3.0-28-generic"
+root="/dev/xvdb1 rw"
+vif = [ '' ]
+extra='xencons=tty'
+```
+
+ 
+
+
+
+Install with debottstrap (like arch linux pacstrap)
+
+```
+mkdir -p /tmp/xenloop
+mount -o loop guest1.img /tmp/xenloop
+```
+
+Install and run debootstrap:
+
+```
+apt-get install debootstrap
+debootstrap bionic /tmp/xenloop
+```
+
+Make the modules dir and copy kernel modules:
+
+```
+mkdir -p /tmp/xenloop/lib/modules
+cp -r /lib/modules/* /tmp/xenloop/lib/modules
+```
+
+Copy apt/sources (there is only one source setup by debootstrap, extras like docker.io are unavailable):
+
+```
+cp /etc/apt/source.list /tmp/xenloop/etc/apt/source.list
+```
+
+Chroot and configure:
+
+```
+chroot /tmp/xenloop
+```
+
+Set root password and unlock root account:
+
+```
+passwd
+passwd -u root
+```
+
+Must configure /etc/fstab by hand (use the drive name from `guest1.cfg`):
+
+```
+root@labguest1:~# cat /etc/fstab 
+# UNCONFIGURED FSTAB FOR BASE SYSTEM
+/dev/xvdb1 		 /				ext4 	defaults		0		0
+/dev/xvdb2       none           swap    sw              0       0
+```
+
+
+
+Remember:
+
+- /etc/hostname - `guest1`
+
+- /etc/exports - if guest needs to access NFS this is best place to configure params
+
+- `apt-get install openssh-server` and set `PermitRootLogin yes` 
+
+- Disable all the automatic network stuff like done for dom0 - but maybe this is better done later
+
+
+Then quit, unmount:
+
+```
+umount /tmp/xenloop
+```
+
+Boot guest in xen (the `-c` flag means attach current console to guest):
+
+```
+sudo xl create guest1.cfg -c
+```
+
+If you messed up with debootstrap (i.e. with installing the userspace) you will get emergency prompt at initramfs here.
+
+First thing to run in the console is dhclient to get a valid ip:
+
+```
+dhclient eth0
+```
+
+Next its very important to update and upgrade (solves some weird problems in ubuntu):
+
+```
+apt-get update && apt-get upgrade
+```
+
+
+
+
+
+
+
+
+
