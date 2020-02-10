@@ -211,3 +211,91 @@ systemctl restart nginx
 Check the ip address for web interface:
 
 ![Installation - Mozilla Firefox_001](LS-Lab-3-monitoring.assets/Installation%20-%20Mozilla%20Firefox_001.png)
+
+After configuration was successful (requires the password for db zabbix user: `zabpassword`) a config file si created in `/usr/share/zabbix/conf/zabbix.conf.php`.
+
+To login into the web interface the default user name is **Admin**, password **zabbix**. 
+
+Sidenote: docker container with zabbix works, but takes 15 minutes to startup (db population with schema is extremely slow).
+
+#####  Installing an agent on a slave machine that will report to the server
+
+Install package:
+
+```
+apt-get install zabbix-agent
+```
+
+Fix config:
+
+```
+root@guest1:~# cat /etc/zabbix/zabbix_agentd.conf
+...
+Server=10.1.1.184
+ServerActive=10.1.1.184
+Hostname=guest1
+...
+```
+
+Start and enable at boot:
+
+```
+systemctl start zabbix-agent
+systemctl enable zabbix-agent
+```
+
+
+
+Then you must add the agent to the zabbix server, in the web interfce:
+
+```
+Configuration -> Hosts -> Create host (tiny button) 
+```
+
+Enter `Host name` in this case `guest1` (same as in the zabbix_agentd.conf)
+
+Go to `Templates` tab, select one or multiple templates (remember to click the small hyperlinked text  `Add` before clicking one of the big  `Add` / `Update` buttons) 
+
+Then the slave machine should be visible:
+
+![Selection_006](LS-Lab-3-monitoring.assets/Selection_006.png)
+
+
+
+
+
+To check what network Zabbix server can see, go to Monitoring -> Discovery. You can configure discovery in Configuration -> Discovery. For example configure to scan LAN network `10.1.1.0/24` once an hour with ICMP ping:
+
+![Selection_005](LS-Lab-3-monitoring.assets/Selection_005.png)
+
+
+
+View status:
+
+![zabsrv: Configuration of discovery rules - Mozilla Firefox_003](../Pictures/zabsrv:%20Status%20of%20discovery%20-%20Mozilla%20Firefox_004.png)
+
+
+
+Problems overview, the report is pretty detailed:
+
+![Selection_008](LS-Lab-3-monitoring.assets/Selection_008.png)
+
+
+
+## Task 2 - Status alerts
+
+- against the guest system itself (ping)
+- against available RAM or disk space (with threshold about 90%)
+
+Setup is shown below:
+
+![Selection_010](LS-Lab-3-monitoring.assets/Selection_010.png)
+
+
+
+The MEMORY.UTIL.MAX = 90 and VFS.FS.PUSHED.MAX.CRIT = 90 are responsible for alerts on 90% usage of RAM and storage respectively. Ping warns if the responce time is longer than 0.15 or if the service is down for 20
+
+
+
+
+
