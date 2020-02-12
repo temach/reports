@@ -46,7 +46,7 @@ services:
       MYSQL_DATABASE: exampledb
       MYSQL_USER: exampleuser
       MYSQL_PASSWORD: examplepass
-      MYSQL_RANDOM_ROOT_PASSWORD: '1'
+      MYSQL_ROOT_PASSWORD: rootpass
     volumes:
       - db:/var/lib/mysql
 
@@ -87,6 +87,14 @@ sources:
 
 - https://www.dmosk.ru/miniinstruktions.php?mini=zabbix-server-ubuntu#zabbix
 - https://serveradmin.ru/ustanovka-i-nastroyka-zabbix-4-0/#_Zabbix_40_Ubuntu_Debian
+
+
+
+To login into the web interface of Zabbix in the end the default user name is **Admin**, password **zabbix**. 
+
+There is a docker `zabbix-appliance` container which works (and contains a DB + PHP + WebServer + Zabbix Server), although it takes 20 minutes to startup (db population with schema is extremely slow), use `docker logs <container-name>` to check its status. More info here: https://hub.docker.com/r/zabbix/zabbix-appliance and https://www.zabbix.com/documentation/current/manual/installation/containers
+
+
 
 DB install and set root password:
 
@@ -508,13 +516,21 @@ From this graph its visible that every hour there is a spike in traffic. I inves
 
 #### Play with the number of threads, number of clients, and request bodies while performing requests
 
-First easy setup:
+source: https://medium.com/@harrietty/load-testing-an-api-with-apache-benchmark-or-jmeter-24cfe39d3a23
+
+
+
+First test easy setup:
 
 ![Apache JMeter (LS-Lab-3-monitoring.assets/Apache%20JMeter%20(2.13.20170723)_032.png)_032](../Pictures/Apache%20JMeter%20(2.13.20170723)_032.png)
 
 Request settings:
 
 ![Lab-3-monitoring.jmx (LS-Lab-3-monitoring.assets/Lab-3-monitoring.jmx%20(-home-artem-Downloads-Lab-3-monitoring.jmx)%20-%20Apache%20JMeter%20(2.13.20170723)_033.png) - Apache JMeter (2.13.20170723)_033](../Pictures/Lab-3-monitoring.jmx%20(-home-artem-Downloads-Lab-3-monitoring.jmx)%20-%20Apache%20JMeter%20(2.13.20170723)_033.png)
+
+
+
+
 
 
 
@@ -527,6 +543,8 @@ Second settings, more aggressive:
 Results of the second, more aggressive test:
 
 ![Lab-3-monitoring.jmx (LS-Lab-3-monitoring.assets/Lab-3-monitoring.jmx%20(-home-artem-Downloads-Lab-3-monitoring.jmx)%20-%20Apache%20JMeter%20(2.13.20170723)_035.png) - Apache JMeter (2.13.20170723)_035](../Pictures/Lab-3-monitoring.jmx%20(-home-artem-Downloads-Lab-3-monitoring.jmx)%20-%20Apache%20JMeter%20(2.13.20170723)_035.png)
+
+
 
 
 
@@ -559,13 +577,53 @@ And a sample of responses:
 
 #### Look at the monitoring screen to see how bad your system is.  What *resource* is the more impacted?..
 
+Impact on memory (less green, means less free memory):
+
+![Selection_040](LS-Lab-3-monitoring.assets/Selection_040.png)
 
 
 
+Network IO (for some reason it stayed at the same level, throughout the test, perhaps this is because the zabbix-agent is running inside a docker container in `guest1` and his traffic gets somehow limited):
+
+![Selection_041](LS-Lab-3-monitoring.assets/Selection_041.png)
+
+
+
+CPU load is shown below:
+
+![Selection_042](LS-Lab-3-monitoring.assets/Selection_042.png)
+
+
+
+CPU time waiting for io (for disks):
+
+![Selection_050](LS-Lab-3-monitoring.assets/Selection_050.png)
+
+
+
+Overall it looks like the most impacted resource is the CPU load and CPU iowait time (i.e. disks!).
 
 
 
 #### Configure an alert threshold for one of those and validate it (Note: it does not make sense to define a threshold for CPU or Network unless you can define a timer within it)
+
+I setup a custom trigger for when the Free Memory reaches below 250M. Then I run the third variation of the JMeter test again. 
+
+JMeter report:
+
+![artem@labubuntu: ~-Downloads_043](LS-Lab-3-monitoring.assets/artem@labubuntu%20-Downloads_043.png)
+
+
+
+Zabbix memory  graph:
+
+![Selection_044](LS-Lab-3-monitoring.assets/Selection_044.png)
+
+
+
+And the trigger working on the Dashboard (by the time I took the screenshot the memory problem `Custom memory check` was already marked as RESOLVED by zabbix, but we can see it lasted for 1 minute and had a 1 minute 2 seconds of recovery time):
+
+![Selection_046](LS-Lab-3-monitoring.assets/Selection_046.png)
 
 
 
@@ -575,27 +633,82 @@ And a sample of responses:
 
 - Do the resulting metrics match with your stress load-test?
 
-Yes, the metrics (shown in answer to a question above as graphs)  indicate that the system was under stress load-test.
+The metrics (shown in answer to a question above as graphs)  indicate that the system was under stress load-test on 2020-02-12 at around 01:40.
 
 
 
 - Are you metrics representative of the actual state of affairs?  Do they reflect reality?
 
-The metrics DO reflect reality because they avoid multiple common errors: 
+The metrics taken by JMeter reflect reality because they avoid multiple common errors: 
 
 1. Error - saturating the benchmark tool faster than saturating the webserver. For example benchmarking Nginx (web server in C on latest Intel CPU) with JMeter (big Java app on some standard CPU) is just useless, because Nginx can run circles around JMeter. In my case the server is a wordpress page heavy theming, which is definately slow enough for JMeter to saturate it.
 2. Error - Running thousands of requests and then taking rough average / mean across everything. This is done by simple tools. JMeter does more, it records more data and is a fully featured load testing tool.
 3. Error -  Testing with an unrealistic testing pattern. Bombarding server with a thousand requests to a single page is not realistic and has subtle interaction with caches, etc. JMeter allows to carefully simulate whatever usage patterns are expected, for example the queries ramp up period allowing the server time to warm up.
 4. Error - Simplistic testing, because tools like Apache Benchmark and Siege cannot be used to define complex use-cases with form submission or multi-step processes (for example a checkout).  JMeter can search for values in the webpage and verify image/text, more than just response status.
 
+On the other hand, the metrics reported by Zabbix might not be representative of the real state:
+
+1. The network graph seems to be misleading, it does not show signs of stress testings, perhaps this is because zabbix-agent is run in the container and does not have access to actual network stats (?)
+2. The metrics reported for CPU usage seem slightly unrealistic, because in the end each JMeter request completed successfully, however CPU graph shows just unbelievable CPU usage.
+
  
 
 - Are some of those irrelevant and should be omitted?
 
-Disk I/O by itself is not very useful, much better to investigate the time that CPU waits for IO, i.e. CPU iowait time. Fast disks are cool, but normally we need more context.
+Disk I/O by itself is not very useful, much better to investigate the time that CPU waits for IO, i.e. CPU iowait time. Fast disks are cool, but normally we need more context, such as is the CPU waiting for the disks or the other way around.
 
 
 
 - So is your system high-load capable?  If not, What would it take to make it happen?
 
-Its not highload capable. To improve the system should be taken out of the docker container, out of the Xen guest and run on the actual host hardware. Using Ubuntu as the base OS is also not the smartest choice as there are many useless services enabled and running by default that take up CPU and IO. Something like Alpine Linux is a much better choice. If there is more money, then instead of running on bare metal, put it behind reverse proxy, setup load balancing and multiple instances of the same docker container, that would also help. 
+Its not highload capable. Clearly the CPU and free memory were exhausted (free memory by around 50%) from serving 1000 requests. One way to improve the system would be if it was taken out of the docker container, out of the Xen guest and run on the actual host hardware. Using Ubuntu as the base OS is also not the smartest choice as there are many useless services enabled and running by default that take up CPU and IO. Something like Alpine Linux is a much better choice. If there is more money, then instead of running on bare metal, put it behind reverse proxy, setup load balancing and multiple instances of the same docker container, that would help. 
+
+
+
+## Task 4 - Trends & business metrics
+
+**Trends** - collect and store metric results for some period of time to see the analytic and forecasts.  Define a few ones, for example
+
+- RPC (requests per second) on web-server, DBMS, etc
+- worker threads and processes
+- queue size
+- reply time (web-page generation time).
+- MySQL/MariaDB types of operations, operations per second, db bandwidth, db disk i/o
+
+and eventually define an alert threshold for one of those
+
+
+
+Monitoring number of running processes and processes in the system with two triggers (two alerts):
+
+![Selection_048](LS-Lab-3-monitoring.assets/Selection_048.png)
+
+
+
+MySQL alert trigger that checks periodically  if the DB is up or down:
+
+![Selection_047](LS-Lab-3-monitoring.assets/Selection_047.png)
+
+
+
+
+
+**Business metrics** - the above metric does not mean or cannot prove that you application works well in terms of functionality.  Proceed with more fine-grained data, for example
+
+- user activity (number of visits/views)
+- how many views vs how many applicants
+- page load time
+- login/sign ups/buys/comments/etc
+- ad conversions
+- high-level metrics
+
+
+
+
+
+
+
+
+
+
+
