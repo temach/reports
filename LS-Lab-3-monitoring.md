@@ -1,6 +1,6 @@
 # LS Lab 3 Monitoring
 
-Artem Abramov
+Artem Abramov, Stepanov Alexey
 
 ### Task 1 - Preparation
 
