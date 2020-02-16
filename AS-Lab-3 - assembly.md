@@ -876,6 +876,24 @@ char buffer[n];
 ```
 
 
+Related disassembly from sample64-2 `sample_function`:
+
+```
+   0x000000000000071a <+32>:	lea    rax,[rbp-0x20]
+   0x000000000000071e <+36>:	mov    rsi,rax
+   0x0000000000000721 <+39>:	lea    rdi,[rip+0x160]        # 0x888
+   0x0000000000000728 <+46>:	mov    eax,0x0
+   0x000000000000072d <+51>:	call   0x5c0 <printf@plt>
+   0x0000000000000732 <+56>:	lea    rax,[rbp-0x12]
+   0x0000000000000736 <+60>:	mov    rsi,rax
+   0x0000000000000739 <+63>:	lea    rdi,[rip+0x178]        # 0x8b8
+   0x0000000000000740 <+70>:	mov    eax,0x0
+   0x0000000000000745 <+75>:	call   0x5c0 <printf@plt>
+```
+
+The variable i is referred by `[rbp-0x20]` and buffer is referred by `[rbp-0x12]`, so variable i is earlier in memory (at a higher address).
+
+
 
 But sample64 looks like below:
 
@@ -884,13 +902,31 @@ char buffer[n];
 int i;
 ```
 
+Related disassembly from sample64 `sample_function`:
+
+```
+   0x0000000000000697 <+13>:	mov    QWORD PTR [rbp-0x8],rax
+   0x000000000000069b <+17>:	lea    rax,[rbp-0x8]
+   0x000000000000069f <+21>:	mov    rsi,rax
+   0x00000000000006a2 <+24>:	lea    rdi,[rip+0x11f]        # 0x7c8
+   0x00000000000006a9 <+31>:	mov    eax,0x0
+   0x00000000000006ae <+36>:	call   0x550 <printf@plt>
+   0x00000000000006b3 <+41>:	lea    rax,[rbp-0x12]
+   0x00000000000006b7 <+45>:	mov    rsi,rax
+   0x00000000000006ba <+48>:	lea    rdi,[rip+0x137]        # 0x7f8
+   0x00000000000006c1 <+55>:	mov    eax,0x0
+   0x00000000000006c6 <+60>:	call   0x550 <printf@plt>
+```
+
+The variable i is referred by `[rbp-0x8]` and buffer is referred by `[rbp-0x12]`, so buffer is earlier (i.e. higher) in memory.
+
 
 
 Therefore if we write past the end of buffer in sample64 we change the value of variable`i`, but in sample64-2 we dont.
 
 
 
-More proof (value of i is lower than address of buffer, so buffer overflow will affect variable `i`):
+More proof (address of i is lower than address of buffer, so buffer overflow will affect variable `i`):
 
 ```
 # ./sample64   
