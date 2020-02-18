@@ -65,7 +65,7 @@ Address Space Layout Randomization is a technique to make exploits more difficul
 
 #### b. How can the debugger insert a breakpoint in the debugged binary/application?
 
-The debugger first installs a handler for the `int 3` interrupts, then when setting a new breakpoint the debugger patches the program (in RAM) to insert a special one-byte instruction `int 3` at the place where execution should break. The original byte value is saved somewhere. When CPU execution reaches the `int 3`, it triggers a software interrupt, which is handled by the compiler. The compiler can deduce which breakpoint was hit and it fixes the patch it made in the beginning, i.e. it restores the original byte value.  Then the program execution can continue as if it was not modified.
+The debugger first installs a handler for the `int 3` interrupts, then when setting a new breakpoint the debugger patches the program (in RAM) to insert a special one-byte instruction `int 3` at the place where execution should break. The original byte value is saved somewhere. When CPU execution reaches the `int 3`, it triggers a software interrupt, which is handled by the debugger's handler. The debugger can deduce which breakpoint was hit and it fixes the patch it made in the beginning, i.e. it restores the original byte value.  Then the program execution can continue as if it was not modified.
 
 
 
