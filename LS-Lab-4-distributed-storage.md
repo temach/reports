@@ -126,22 +126,31 @@ Now on top of this block hosting volume, we must create a glusterfs-block device
 Install build-time dependencies:
 
 ```
-apt install git autoconf automake gcc libtool make file pkg-config libjson-c-dev uuid-dev libtirpc-dev targetcli-fb cmake libnl-3-dev libnl-genl-3-dev libglib2.0-dev zlib1g-dev kmod libkmod-dev libgoogle-perftools-dev
+apt install git autoconf automake gcc libtool make file pkg-config libjson-c-dev uuid-dev libtirpc-dev cmake libnl-3-dev libnl-genl-3-dev libglib2.0-dev zlib1g-dev kmod libkmod-dev libgoogle-perftools-dev
 ```
 
-Clone sources and build:
+targetcli-fb
+
+Clone sources and build (I was building from commit 9767ecea8493276d217044a195b640d4ff85e28d made on 2020-01-03):
 
 ```
 git clone https://github.com/gluster/gluster-block
 cd gluster-block
-./autogen.sh
-./configure --with-systemddir=/usr/lib/systemd/system --enable-tirpc=no
 ```
 
-Make sure that directory from the config actually exists (not by default):
+Decide where to put systemd files to control the daemons, I will use `/usr/lib/systemd/system`. 
+
+**IMPORTANT** before running autogen and configure ensure that directory from the config actually exists (it does not by default):
 
 ```
 mkdir -p /usr/lib/systemd/system
+```
+
+Make sure directory exists and then run configure:
+
+```
+./autogen.sh
+./configure --with-systemddir=/usr/lib/systemd/system --enable-tirpc=no
 ```
 
 Configuration summary:
@@ -184,27 +193,12 @@ make install
 
 
 
-`targetcli-fb` is another runtime dependency, but we installed it earlier.
+At this point we should really be able to run gluster-block. However, in reality this is far from the end!
 
-Enable glsuter-blockd and tcmu-runner systemd files:
-
-```
-cd /usr/lib/systemd/system
-systemctl enable tcmu-runner.service 
-systemctl start tcmu-runner.service 
-systemctl enable gluster-block-target.service gluster-blockd.service 
-```
-
-
-
-However, this is far from the end!
-
-There are multiple errors to overcome. First fix dependency versions.
-
-Remove Ubuntu packages.
+There are multiple errors to overcome. First fix dependency versions, by removing outdated Ubuntu packages (they should be absent by default) and installing newer versions from pip:
 
 ```
-apt-get remove targetcli-fb python-rtslib-fb python3-configshell-fb python3-rtslib-fb
+apt-get remove targetcli-fb python-rtslib-fb python3-rtslib-fb python3-configshell-fb python3-urwid python3-pyparsing 
 ```
 
 Install pip:
@@ -213,35 +207,81 @@ Install pip:
 apt-get install python-pip
 ```
 
-Install the packages as below:
+Versions of default pip packages:
 
 ```
-asn1crypto (0.24.0)
-configshell-fb (1.1.25)
-cryptography (2.1.4)
-enum34 (1.1.6)
-idna (2.6)
-ipaddress (1.0.17)
-keyring (10.6.0)
-keyrings.alt (3.0)
-pip (9.0.1)
-pycrypto (2.6.1)
-pygobject (3.26.1)
-pyparsing (2.4.6)
-pyudev (0.22.0)
-pyxdg (0.25)
-rtslib-fb (2.1.71)
-SecretStorage (2.3.1)
-setuptools (39.0.1)
-six (1.11.0)
-targetcli-fb (2.1.51)
-urwid (2.0.1)
-wheel (0.30.0)
+asn1crypto==0.24.0
+cryptography==2.1.4
+enum34==1.1.6
+idna==2.6
+ipaddress==1.0.17
+keyring==10.6.0
+keyrings.alt==3.0
+pip==9.0.1
+pycrypto==2.6.1
+pygobject==3.26.1
+pyxdg==0.25
+SecretStorage==2.3.1
+six==1.11.0
+wheel==0.30.0
+```
+
+Now to install gluster-block dependencies from file with pip use:
+
+```
+pip install -r glusterdeps.txt
+```
+
+Install the packages with versions as below:
+
+```
+# cat glusterdeps.txt
+configshell-fb==1.1.25
+pyparsing==2.4.6
+pyudev==0.22.0
+rtslib-fb==2.1.71
+targetcli-fb==2.1.51
+urwid==2.0.1
 ```
 
 Currently the latest `uwrid(2.1.x)` has problems, so use `urwid(2.0.1)` .
 
 Pay particular attention to `rtslib-fb`, `targetcli-fb` , `configshell-fb` packages. 
+
+
+
+##### Slight detour to create targetcli-fb pip package
+
+I was faced with the problem that `targetcli-fb` was not available in the Python Package Index. I decided to do a service to everyone by packaging and uploading it there (otherwise I would have to install it on all three server nodes from source).
+
+To package code for pip, first register on the https://pypi.org/
+
+```
+username: temach1
+email: aabramovrussia@gmail.com
+```
+
+Clone the code:
+
+```
+git clone https://github.com/open-iscsi/targetcli-fb
+```
+
+Install dependencies (setuptool to build package, twine to upload it to PyPi):
+
+```
+apt install python-setuptools twine
+```
+
+Create package and upload:
+
+```
+cd targetcli-fb/
+python setup.py sdist
+twine upload dist/*
+```
+
+##### End of slight detour
 
 
 
@@ -271,6 +311,41 @@ ln -s /usr/local/bin/targetclid /usr/bin/targetclid
 ln -s /usr/local/bin/targetctl /usr/bin/targetctl
 ln -s /usr/local/bin/targetcli /usr/bin/targetcli
 ```
+
+
+
+Next try to run  `targetcli` command as shown here:
+
+https://yari.net/2016/08/28/how-to-fix-not-working-targetclitarget-on-centos-7-1-1503/
+
+```
+# targetcli 
+targetcli shell version 2.1.51
+Entering targetcli batch mode for daemonized approach.
+Enter multiple commands separated by newline and type 'exit' to run them all in one go.
+
+/> ls
+/> exit
+o- / ......................................................... [...]
+  o- backstores .............................................. [...]
+  | o- block .................................. [Storage Objects: 0]
+  | o- fileio ................................. [Storage Objects: 0]
+  | o- pscsi .................................. [Storage Objects: 0]
+  | o- ramdisk ................................ [Storage Objects: 0]
+  | o- user:glfs .............................. [Storage Objects: 0]
+  o- iscsi ............................................ [Targets: 0]
+  o- loopback ......................................... [Targets: 0]
+  o- vhost ............................................ [Targets: 0]
+  o- xen-pvscsi ....................................... [Targets: 0]
+```
+
+Most likely you will need to create the config directory that is will populate with default settings:
+
+```
+mkdir -p /etc/target
+```
+
+
 
 
 
@@ -334,7 +409,7 @@ o- / ......................................................... [...]
 Finally we can create block device on our hosting volume!
 
 ```
-gluster-block create sample/block 10.1.1.97 1GiB --json-pretty
+# gluster-block create sample/block 10.1.1.97 1GiB --json-pretty
 {
   "IQN":"iqn.2016-12.org.gluster-block:ee4f68fe-890d-426b-8cc7-6fd787761a7f",
   "PORTAL(S)":[
@@ -353,7 +428,7 @@ gluster-block delete sample/block --json-pretty
 Check with:
 
 ```
-gluster-block info sample/block --json-pretty
+# gluster-block info sample/block --json-pretty
 {
   "NAME":"block",
   "VOLUME":"sample",
@@ -421,7 +496,7 @@ Add two server nodes to the pool.
 Check peer status (this was run on labguest4.local machine):
 
 ```
-# gluster peer status
+e gluster-block CLI from any of the 3 nodes where glusterd and gluster-blockd are running.# gluster peer status
 Number of Peers: 2
 
 Hostname: labguest3.local
@@ -499,11 +574,13 @@ Its also possible to create volumes and tie them to bricks immediately (3 replic
 
 ### Acceptance Testing
 
-##### Configure the client
+First step is to check that GlusterFS itself works, without the block device. After that I will provide acceptance testing of the block-device. 
+
+##### Testing GlusterFS
 
 source: https://www.scaleway.com/en/docs/how-to-configure-storage-with-glusterfs-on-ubuntu/
 
- I used my host machine to test as a client (dom0):
+I used my host machine to test as a client (dom0):
 
 ```
 apt install glusterfs-client
@@ -544,7 +621,29 @@ tmpfs            98M     0   98M   0% /run/user/0
 
 
 
-Create data inside:
+Looking inside the glusterfs there is data placed there by the gluster-block addon (in particular the 1 gigabyte file for the block device is there):
+
+```
+artem@labubuntu:/mnt/gfs-sample$ sudo ls -Rlh /mnt/gfs-sample
+.:
+total 8,0K
+d--------- 2 root root 4,0K фев 18 06:02 block-meta
+d--------- 2 root root 4,0K фев 18 05:56 block-store
+
+./block-meta:
+total 512
+-rw------- 1 root root 238 фев 18 04:48 block
+-rw------- 1 root root   0 фев 18 04:47 meta.lock
+-rw------- 1 root root   0 фев 18 04:47 prio.info
+
+./block-store:
+total 1,0G
+-rw------- 1 root root 1,0G фев 18 04:48 ee4f68fe-890d-426b-8cc7-6fd787761a7f
+```
+
+
+
+Create data inside to test GlusterFS:
 
 ```
 cd /mnt/gfs-sample/
@@ -558,9 +657,183 @@ Then unmount:
 sudo umount /mnt/gfs-sample/
 ```
 
+To complete install client tools on another machine (I used labguest4.local), mount and verify that files are present, and indeed they are.
+
+This concludes testing GlusterFS.
 
 
-To complete install client tools on another machine, mount and verify that files are present, and indeed they are.
+
+##### Testing gluster-block
+
+Now its time to setup the other 2 server nodes with gluster-blockd. Get the gluster-blockd.service running on all the 3 server nodes. Check availability from other nodes with the above gluster-block info command.
+
+Then create a new block device that is spread across two server nodes:
+
+```
+# gluster-block create sample/block2 ha 2 10.1.1.97,10.1.1.184 1GiB --json-pretty
+{
+  "IQN":"iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d",
+  "PORTAL(S)":[
+    "10.1.1.97:3260",
+    "10.1.1.184:3260"
+  ],
+  "RESULT":"SUCCESS"
+}
+```
 
 
 
+Install iSCSI (Internet Small Computer System Interface) initiator:
+
+```
+sudo apt install open-iscsi
+```
+
+Search for block devices:
+
+```
+sudo iscsiadm -m discovery -t st -p labguest3.local
+10.1.1.97:3260,1 iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d
+10.1.1.184:3260,2 iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d
+```
+
+So there is one device found!
+
+List current block devices:
+
+```
+# lsblk
+NAME   MAJ:MIN RM    SIZE RO TYPE MOUNTPOINT
+loop0    7:0    0   1008K  1 loop /snap/gnome-logs/61
+loop1    7:1    0   54,7M  1 loop /snap/core18/1668
+loop2    7:2    0   54,4M  1 loop /snap/core18/1066
+loop3    7:3    0   89,1M  1 loop /snap/core/8268
+loop4    7:4    0   42,8M  1 loop /snap/gtk-common-themes/1313
+loop5    7:5    0  160,2M  1 loop /snap/gnome-3-28-1804/116
+loop6    7:6    0    3,7M  1 loop /snap/gnome-system-monitor/127
+loop7    7:7    0   14,8M  1 loop /snap/gnome-characters/399
+loop8    7:8    0    3,7M  1 loop /snap/gnome-system-monitor/100
+loop9    7:9    0      6G  0 loop 
+loop10   7:10   0      6G  0 loop 
+loop11   7:11   0   14,8M  1 loop /snap/gnome-characters/296
+loop12   7:12   0      4M  1 loop /snap/gnome-calculator/406
+loop13   7:13   0  131,9M  1 loop /snap/telegram-desktop/1038
+loop14   7:14   0    4,2M  1 loop /snap/gnome-calculator/544
+loop15   7:15   0  149,9M  1 loop /snap/gnome-3-28-1804/67
+loop16   7:16   0   44,9M  1 loop /snap/gtk-common-themes/1440
+loop17   7:17   0    956K  1 loop /snap/gnome-logs/81
+loop18   7:18   0      1G  0 loop 
+loop19   7:19   0   91,3M  1 loop /snap/core/8592
+loop20   7:20   0      6G  0 loop 
+loop21   7:21   0      1G  0 loop 
+loop22   7:22   0      1G  0 loop 
+sda      8:0    0  931,5G  0 disk 
+├─sda1   8:1    0    512M  0 part /boot/efi
+├─sda2   8:2    0  541,3G  0 part 
+├─sda3   8:3    0 1023,7M  0 part [SWAP]
+└─sda4   8:4    0  388,8G  0 part /
+sr0     11:0    1   1024M  0 rom 
+```
+
+
+
+Now scan and login (note the trailing `-l`):
+
+```
+# sudo iscsiadm -m discovery -t st -p labguest3.local -l
+10.1.1.97:3260,1 iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d
+10.1.1.184:3260,2 iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d
+Logging in to [iface: default, target: iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d, portal: 10.1.1.97,3260] (multiple)
+Logging in to [iface: default, target: iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d, portal: 10.1.1.184,3260] (multiple)
+Login to [iface: default, target: iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d, portal: 10.1.1.97,3260] successful.
+Login to [iface: default, target: iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d, portal: 10.1.1.184,3260] successful.
+```
+
+List current block devices again:
+
+```
+# lsblk
+NAME   MAJ:MIN RM    SIZE RO TYPE MOUNTPOINT
+loop0    7:0    0   1008K  1 loop /snap/gnome-logs/61
+loop1    7:1    0   54,7M  1 loop /snap/core18/1668
+loop2    7:2    0   54,4M  1 loop /snap/core18/1066
+loop3    7:3    0   89,1M  1 loop /snap/core/8268
+loop4    7:4    0   42,8M  1 loop /snap/gtk-common-themes/1313
+loop5    7:5    0  160,2M  1 loop /snap/gnome-3-28-1804/116
+loop6    7:6    0    3,7M  1 loop /snap/gnome-system-monitor/127
+loop7    7:7    0   14,8M  1 loop /snap/gnome-characters/399
+loop8    7:8    0    3,7M  1 loop /snap/gnome-system-monitor/100
+loop9    7:9    0      6G  0 loop 
+loop10   7:10   0      6G  0 loop 
+loop11   7:11   0   14,8M  1 loop /snap/gnome-characters/296
+loop12   7:12   0      4M  1 loop /snap/gnome-calculator/406
+loop13   7:13   0  131,9M  1 loop /snap/telegram-desktop/1038
+loop14   7:14   0    4,2M  1 loop /snap/gnome-calculator/544
+loop15   7:15   0  149,9M  1 loop /snap/gnome-3-28-1804/67
+loop16   7:16   0   44,9M  1 loop /snap/gtk-common-themes/1440
+loop17   7:17   0    956K  1 loop /snap/gnome-logs/81
+loop18   7:18   0      1G  0 loop 
+loop19   7:19   0   91,3M  1 loop /snap/core/8592
+loop20   7:20   0      6G  0 loop 
+loop21   7:21   0      1G  0 loop 
+loop22   7:22   0      1G  0 loop 
+sda      8:0    0  931,5G  0 disk 
+├─sda1   8:1    0    512M  0 part /boot/efi
+├─sda2   8:2    0  541,3G  0 part 
+├─sda3   8:3    0 1023,7M  0 part [SWAP]
+└─sda4   8:4    0  388,8G  0 part /
+sdc      8:32   0      1G  0 disk 
+sdd      8:48   0      1G  0 disk 
+sr0     11:0    1   1024M  0 rom  
+```
+
+
+
+We can see that there is `/dev/sdc` and `/dev/sdd` blocks and they are 1G in size!
+
+ There are actually two block devices that lead to the same object, however for proper sync the client should install and use `multipath` tools.
+
+Make the file system and mount it:
+
+```
+# sudo mkfs.ext4 /dev/sdc
+mke2fs 1.44.1 (24-Mar-2018)
+Discarding device blocks: done                            
+Creating filesystem with 262144 4k blocks and 65536 inodes
+Filesystem UUID: f2129a52-adec-4e20-874f-28faa20903df
+Superblock backups stored on blocks: 
+	32768, 98304, 163840, 229376
+
+Allocating group tables: done                            
+Writing inode tables: done                            
+Creating journal (8192 blocks): done
+Writing superblocks and filesystem accounting information: done
+```
+
+Finally mount it:
+
+```
+mount /dev/sdc /mnt/gluster
+```
+
+Create a file. 
+
+Then unmount. Then logout:
+
+```
+# sudo iscsiadm -m node --logout all
+Logging out of session [sid: 2, target: iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d, portal: 10.1.1.97,3260]
+Logging out of session [sid: 3, target: iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d, portal: 10.1.1.184,3260]
+Logout of [sid: 2, target: iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d, portal: 10.1.1.97,3260] successful.
+Logout of [sid: 3, target: iqn.2016-12.org.gluster-block:38b6b1aa-0332-4fde-b0ab-e27be04ec65d, portal: 10.1.1.184,3260] successful.
+```
+
+Verify that command below is empty (all sessions are closed):
+
+```
+sudo iscsiadm -m session
+```
+
+Check that its gone in `lsblk`.
+
+Then change to another machine and mount the directory, the file is indeed there.
