@@ -246,7 +246,7 @@ urwid==2.0.1
 
 Currently the latest `uwrid(2.1.x)` has problems, so use `urwid(2.0.1)` .
 
-Pay particular attention to `rtslib-fb`, `targetcli-fb` , `configshell-fb` packages. 
+Pay particular attention to `rtslib-fb`, `targetcli-fb` , `configshell-fb` packages, they might be out of sync and if things break suspect them first. Uninstalling the pip versions and reinstalling from source helps in this case.06076aba7e9e9bd4a1e84bac61e85265e8075b8e
 
 
 
@@ -285,13 +285,11 @@ twine upload dist/*
 
 
 
-For the `rtslib-fb`  get the source to install `systemd` file:
+The preferred install order is:
 
-```
-git clone https://github.com/open-iscsi/rtslib-fb
-cd rtslib-fb/
-cp systemd/target.service /usr/lib/systemd/system/
-```
+- targetcli-fb
+- rtslib-fb
+- configshell-fb
 
 
 
@@ -310,6 +308,16 @@ For  `targetcli-fb` make symbolic links (because python packages install into `/
 ln -s /usr/local/bin/targetclid /usr/bin/targetclid
 ln -s /usr/local/bin/targetctl /usr/bin/targetctl
 ln -s /usr/local/bin/targetcli /usr/bin/targetcli
+```
+
+
+
+For the `rtslib-fb`  get the source to install `systemd` file:
+
+```
+git clone https://github.com/open-iscsi/rtslib-fb
+cd rtslib-fb/
+cp systemd/target.service /usr/lib/systemd/system/
 ```
 
 
@@ -364,10 +372,11 @@ drwxr-xr-x 12 root root 4096 Feb 17 23:53 ..
 -rw-r--r--  1 root root  303 Feb 17 23:43 tcmu-runner.service
 ```
 
-Change to the directory and enable all services:
+Change to the directory and just to be sure first stop all, then enable all, and start all services:
 
 ```
 cd /usr/lib/systemd/system
+systemctl stop *
 systemctl daemon-reload
 systemctl enable *
 systemctl start gluster-blockd.service
@@ -377,7 +386,7 @@ systemctl start gluster-blockd.service
 
 
 
-If things break test in particular that `targetcli` command works as shown here:
+If things break test in particular that `targetcli` command works:
 
 https://yari.net/2016/08/28/how-to-fix-not-working-targetclitarget-on-centos-7-1-1503/
 
@@ -400,6 +409,34 @@ o- / ......................................................... [...]
   o- loopback ......................................... [Targets: 0]
   o- vhost ............................................ [Targets: 0]
   o- xen-pvscsi ....................................... [Targets: 0]
+```
+
+Its also possible that targetcli fails and complains about daemon needed. In this particular error just go directly for starting the gluster-block daemon:
+
+```
+systemctl start gluster-blockd.service
+```
+
+Here is the output of a healthy gluster-blockd.service:
+
+```
+● gluster-blockd.service - Gluster block storage utility
+   Loaded: loaded (/usr/lib/systemd/system/gluster-blockd.service; enabled; vendor preset: enabled)
+   Active: active (running) since Thu 2020-02-20 01:13:20 UTC; 3min 42s ago
+ Main PID: 22987 (gluster-blockd)
+    Tasks: 3 (limit: 1117)
+   CGroup: /system.slice/gluster-blockd.service
+           ├─22987 /usr/local/sbin/gluster-blockd --glfs-lru-count 5 --log-level INFO
+           └─23081 /usr/local/sbin/gluster-blockd --glfs-lru-count 5 --log-level INFO
+
+Feb 20 01:13:20 labguest4 systemd[1]: Started Gluster block storage utility.
+Feb 20 01:13:21 labguest4 gluster-blockd[22987]: Parameter logfile is now '/var/log/gluster-block/gluster-block-configshell.log'.
+Feb 20 01:13:21 labguest4 gluster-blockd[22987]: Parameter loglevel_file is now 'info'.
+Feb 20 01:13:21 labguest4 gluster-blockd[22987]: Parameter auto_use_daemon is now 'true'.
+Feb 20 01:13:21 labguest4 gluster-blockd[22987]: Parameter auto_enable_tpgt is now
+Feb 20 01:13:21 labguest4 gluster-blockd[22987]: Parameter auto_add_default_portal is now
+Feb 20 01:13:21 labguest4 gluster-blockd[22987]: Parameter auto_save_on_exit is now 
+Feb 20 01:13:21 labguest4 gluster-blockd[22987]: Parameter max_backup_files is now '100'.
 ```
 
 
@@ -784,7 +821,7 @@ sda      8:0    0  931,5G  0 disk
 └─sda4   8:4    0  388,8G  0 part /
 sdc      8:32   0      1G  0 disk 
 sdd      8:48   0      1G  0 disk 
-sr0     11:0    1   1024M  0 rom  
+sr0     11:0    1   1024M  0 rom  sudo iscsiadm -m discovery -t st -p labguest3.local
 ```
 
 
