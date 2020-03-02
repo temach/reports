@@ -380,7 +380,7 @@ cp -r /lib/modules/* /tmp/xenloop/lib/modules
 Copy apt/sources (there is only one source setup by debootstrap, extras like docker.io are unavailable):
 
 ```
-cp /etc/apt/source.list /tmp/xenloop/etc/apt/source.list
+cp /etc/apt/sources.list /tmp/xenloop/etc/apt/sources.list
 ```
 
 Chroot and configure:
