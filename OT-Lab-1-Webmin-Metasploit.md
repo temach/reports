@@ -2,13 +2,15 @@
 
 Team: Vasili Zyabkin, Vadim Rakhmatulin, Artem Abramov
 
+This report was written by Artem Abramov.
+
+
+
 Company infrastructure as a team, but chosen tasks remain individual
 
 ## Infrastructure
 
-
-
-
+This is described in the video.
 
 ## Individual Task
 
