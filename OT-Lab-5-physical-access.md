@@ -671,3 +671,397 @@ We can see that there are three suspicious bytes: `0x4D`, perhaps a delimiter, p
 
 Well if only there was a second card from that hotel it would be much easier to figure out the parts that change and the parts that stay the same. But knowing this is a hotel card we can expect that some where there should be a time stamp (or two) that would dictate when the card is valid.
 
+
+
+## Task 2 - Full disk encryption (3 points)
+
+Interesting article on protecting one's laptop: https://www.grepular.com/Protecting_a_Laptop_from_Simple_and_Sophisticated_Attacks
+
+
+
+You can get a copy of Evilmaid there: https://os3.su/ot/
+
+### Configure a physical or virtual machine running Windows
+
+I decided to use virtual box. Initially I wanted to do the lab using a linux guest vm, however after setting up it turns out that TrueCrypt can not do full disk encryption for linux based systems. It refuses as shown below:
+
+![linux (OT-Lab-5-physical-access.assets/linux%20(truecrypt-installed)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_061.png) [Running] - Oracle VM VirtualBox_061](../Pictures/linux%20(truecrypt-installed)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_061.png)
+
+
+
+Therefore I reinstalled the VM with windows XP. 
+
+![winxp32 [Running] - Oracle VM VirtualBox_062](OT-Lab-5-physical-access.assets/winxp32%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_062.png)
+
+
+
+### Crypt the disk using TrueCrypt – use system disk encryption
+
+Download TrueCrypt from https://github.com/AuditProject/truecrypt-verified-mirror/tree/master/Windows
+
+Then choose Create Volume and System Partition and walk through the installer. 
+
+Selecting the boot mode:
+
+![winxp32 [Running] - Oracle VM VirtualBox_064](OT-Lab-5-physical-access.assets/winxp32%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_064.png)
+
+
+
+Entering the password (I used `testpass`):
+
+![winxp32 [Running] - Oracle VM VirtualBox_065](OT-Lab-5-physical-access.assets/winxp32%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_065.png)
+
+
+Keys generated:
+
+![winxp32 [Running] - Oracle VM VirtualBox_066](OT-Lab-5-physical-access.assets/winxp32%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_066.png)
+
+
+
+Then it was necessary to create a backup iso. I extracted the ISO created by TrueCrypt from the VDI image using this link: https://stackoverflow.com/questions/16893306/how-can-i-extract-files-from-vdi
+And loaded this iso in VirtualBox. Then verification was successful:
+
+![winxp32 [Running] - Oracle VM VirtualBox_068](OT-Lab-5-physical-access.assets/winxp32%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_068.png)
+
+
+
+Finally everything is ready:
+
+![winxp32 (OT-Lab-5-physical-access.assets/winxp32%20(before)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_069.png) [Running] - Oracle VM VirtualBox_069](../Pictures/winxp32%20(before)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_069.png)
+
+
+
+Test rebooting:
+
+![winxp32 (OT-Lab-5-physical-access.assets/winxp32%20(almost)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_073.png) [Running] - Oracle VM VirtualBox_073](../Pictures/winxp32%20(almost)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_073.png)
+
+
+
+### Write a tool or script to check the integrity of the bootloader (detect modification of bootloader code) and test it
+
+#### Understanding the attack vector
+
+The attack Evil Maid is targeted at computers with encrypted hard drives. The attack works by modifying or erplacing the bootloader while the owner is not present. The evil bootloader has a keylogger installed.
+
+To protect against this attack its necessary necessary to answer the following question on each boot: "What was there in sector 0". In other words: "What was the first piece of code that BIOS executed (BIOS is read-only, so we have to trust it)?".
+
+The defense strategy is as follows:
+
+1. After first installing TrueCrypt, take a reference binary dump of sector 0 (at least calculate its hash)
+2. After each reboot make a dump of sector 0 and check:
+    - if dump matches the reference dump (or hashes match) then everything is ok
+    - if dump is different (or hash does not match), then warn the user
+
+I installed MinGW for Windows XP and used the following two scripts.
+
+Calculate the hash of the original bootloader (to be used as reference):
+
+```bash
+# cat calc-mbr-hash.sh
+dd if=/dev/sda of=/tmp/mbr.dump bs=512 count=1
+sha256sum /tmp/mbr.dump > ~/.tc-bootloader.hash
+```
+
+Compare original bootloader with current bootloader:
+
+```bash
+# cat compare-mbr-hash.sh
+originalhash=$(cat ~/.tc-bootloader.hash)
+dd if=/dev/sda of=/tmp/mbr.dump bs=512 count=1
+currenthash=$( sha256sum /tmp/mbr.dump )
+if [[ $currenthash == $originalhash ]]
+then
+	exit 0
+else
+	echo "Bootloader was modified!!! Change password!" 
+	exit 1
+fi
+```
+
+Then I modified one of the zero bytes in the bootloader and indeed running the script caught the error.
+
+
+
+### Use Evil Maid to retrieve the password
+
+Dowload Evilmaid. Check the file size:
+```
+# ls -la
+-rw-r--r--  1 artem artem 11808768 мая  4 13:32 evilmaidusb-1.01.img
+```
+
+Check file type:
+```
+# file evilmaidusb-1.01.img 
+evilmaidusb-1.01.img: DOS/MBR boot sector; partition 1 : ID=0x83, active, start-CHS (0x0,1,1), end-CHS (0x5,61,62), startsector 62, 23002 sectors
+```
+
+So its a disk image, ready to be booted. In real life scenarios evilmaid image would be copied with "dd" to a USB stick and the target computer would boot from that USB by setting boot priority in BIOS. 
+
+
+
+#### Configure VirtualBox to boot EvilMaid kernel
+
+However in this lab I am using virtual box, so need to boot virtualbox vm from the evilmaid image and install the evilmaid.  Create a VDI image from the raw evilmaid image, so VirtualBox would be able to boot it:
+
+```
+# VBoxManage convertdd evilmaidusb-1.01.img evilmaid.vdi
+Converting from raw image file="/home/artem/uni/ot-lab-5/evilmaidusb-1.01.img" to file="evilmaid.vdi"...
+Creating dynamic image with size 11808768 bytes (12MB)...
+```
+Its important to specify that this disk comes first for boot priority (its in slot SATA 0).
+
+As shown below:
+
+![winxp32 - Settings_071](OT-Lab-5-physical-access.assets/winxp32%20-%20Settings_071.png)
+
+sources:
+
+- https://www.ostechnix.com/how-to-convert-img-file-to-vdi-file-using-oracle-virtualbox/
+- http://tech.webit.nu/virtualbox-convert-raw-image-to-vdi-and-otherwise/
+
+
+
+#### Understanding this implementation of EvilMaid
+
+To understand how this implementation of evil maid works, lets look inside the kernel image:
+
+```
+# file evilmaid-src-1.0/evilmaid/stick/initrd.img
+initrd.img: gzip compressed data, last modified: Tue May 12 13:15:39 2020, from Unix
+```
+
+Decompressing it we get the following layout:
+
+```
+ls -la evilmaid-src-1.0/evilmaid/stick/initrd
+total 52
+drwx------ 12 artem artem 4096 мая 12 16:01 .
+drwxr-xr-x  4 artem artem 4096 мая 12 16:15 ..
+drwx------  2 artem artem 4096 мая 12 16:01 bin
+drwx------  3 artem artem 4096 мая 12 16:01 dev
+drwx------  4 artem artem 4096 мая 12 16:01 etc
+-rwx------  1 artem artem 1345 мая 12 16:01 init
+drwx------  6 artem artem 4096 мая 12 16:01 lib
+drwxr-xr-x  3 artem artem 4096 мая 12 16:01 mnt
+-rw-r--r--  1 artem artem    0 мая 12 16:01 mtab
+drwx------  2 artem artem 4096 мая 12 16:01 proc
+drwx------  2 artem artem 4096 мая 12 16:01 progs
+lrwxrwxrwx  1 artem artem    3 мая 12 16:01 sbin -> bin
+drwx------  2 artem artem 4096 мая 12 16:01 sys
+drwx------  2 artem artem 4096 мая 12 16:01 sysroot
+drwx------  4 artem artem 4096 мая 12 16:01 usr
+
+```
+
+The interesting files in the image are:
+
+- /init - shell script run at kernel boot (after kernel boot we see output from this script) that creates devices and executes /progs/stage1.sh
+- /progs/stage1.sh - shell script that waits for USB device, mounts it and executes stage2 (this is the script that prints `Waiting for the USB stick to init...` message)
+
+This implementation of evil maid uses a two stage approach, booting into a custom kernel that waits for the second stage. The second stage is a script that must be stored on a USB stick. The kernel loops waiting for the USB stick. 
+
+
+To be honest its not clear why this approach to the evil maid attack was taken. Using this approach to actually compromise a machine you need two USB sticks: 
+
+- one with the kernel (which will be booted by BIOS)
+- second one with the software which installs the key logger (by patching the true crypt's binary).
+
+Which seems to be just extra nuisance. Perhaps it was done to allow changing the payload or target device (by default it is /dev/sda).
+
+
+
+
+#### Forwarding USB to guest in VirtualBox
+
+From the above stage1.sh uses a specific check waiting for a USB to connect, this forces the use of an actual USB.
+
+There are two possible options for allowing VirtualBox guest to see the USB:
+
+- Follow the steps here: https://dzone.com/articles/how-to-mount-usb-drives-on-virtualbox
+- Run VirtualBox as root user (then it will have permission to see and control devices)
+
+For the sake of experiment its simpler to run it as root. Then add the specific USB drive to be visible to your guest as shown below:
+
+![Selection_063](OT-Lab-5-physical-access.assets/Selection_063.png)
+
+Also every time you plug a USB in Ubuntu it gets automatically mounted, for me it was at:
+
+```
+# lsbkl
+sdb      8:16   1    15G  0 disk 
+└─sdb1   8:17   1    15G  0 part /media/artem/0291-0D82
+```
+
+It is necessary to unmount it every time, otherwise VirtualBox will have problems.
+
+
+
+#### Prepare the USB stick with stage 2
+
+Anyway prepare the USB stick using the sources tarball: 
+
+```
+evilmaid-src-1.0.tgz
+```
+
+Look at file  `evilmaid-src-1.0/evilmaid/stick/stage2` we can see that it needs a binary program called `patch_tc` which is called inside the function `run_evilmaid`.
+
+So create a USB stick (format it as FAT32, because the stage1 script expects that for mounting) with the following two files:
+```
+evilmaid-src-1.0/evilmaid/evilmaid-tc/patch_tc
+evilmaid-src-1.0/evilmaid/stick/stage2
+```
+
+
+
+#### Carrying out the attack
+
+Its enougth to boot into the evil kernel, attach the usb, and the menu is presented as shown below:
+
+![winxp32 (OT-Lab-5-physical-access.assets/winxp32%20(almost)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_072.png) [Running] - Oracle VM VirtualBox_072](../Pictures/winxp32%20(almost)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_072.png)
+
+Perform the attack by pressing E and poweroff the machine. (Because of my setup I changed the drive to /dev/sdb): 
+
+![winxp32 (OT-Lab-5-physical-access.assets/winxp32%20(almost)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_074.png) [Running] - Oracle VM VirtualBox_074](../Pictures/winxp32%20(almost)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_074.png)
+
+Now simulate a normal user login. Enter the disk password, check that scripts were able to detect the breach, and finally shutdown. 
+
+Now as the attacker login to the evil kernel again, select B for bash shell and retrieve the password. 
+
+Looking at `patch_tc.c` we can find where the sniffed password will be stored:
+
+
+```C
+bool DisplayTrueCryptPassword (
+        unsigned char *pFirstSectors,
+        unsigned long uSectorsCount
+)
+{
+    [...skipping lines...]        
+// Sniffed password should be stored at disk offset 0x7a00 (sector #61).
+// Modify logger.asm if this is changed.
+
+    [...skipping lines...]
+        pPassword = (Password *) & pFirstSectors[61 * SECTOR_SIZE];
+        if (MIN_PASSWORD > pPassword->Length || pPassword->Length > MAX_PASSWORD) {
+                printf ("DisplayTrueCryptPassword(): No password in the disk image\n");
+                return FALSE;
+        }
+    [...skipping lines...]
+```
+
+Alternatively we can just try to infect the booloader once more, in which case the software will detect previous infection and just show the password.
+
+And we can see the password was found: (`testpass`)
+
+![winxp32 (OT-Lab-5-physical-access.assets/winxp32%20(almost)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_076.png) [Running] - Oracle VM VirtualBox_076](../Pictures/winxp32%20(almost)%20%5BRunning%5D%20-%20Oracle%20VM%20VirtualBox_076.png)
+
+### How can you detect this attack? How can you prevent this attack? Is a similar attack also possible on other similar products? Why or why not? On which product(s)?
+
+The attack works by patching the truecrypt bootloader. The attack can be detected because patching means changing data on disk, so as a user we can calculate and remember the valid hashsum of the truecrypt bootloader and if that hashsum changes we can assume that someone was tampering with the bootloader code. 
+
+There are multiple ways to mitigate the attack. 
+
+- Store the /boot partition on USB stick and only boot from that.
+- Upgrade to UEFI + SecureBoot, perhaps via Trusted Platform Module.
+- Set BIOS (or UEFI) master password and forbid booting from USB, allow only harddrive. (not 100% mitigation).  
+
+source: https://www.grepular.com/Protecting_a_Laptop_from_Simple_and_Sophisticated_Attacks
+
+The attack can be carried out also on machines using PGP Whole Disk Encryption, dm-crypt and possibly on FileVault. They use the same approach as TrueCrypt. 
+
+
+### What mechanism is used by TrueCrypt’s successor VeraCrypt to protect against the Evil Maid attack? (show in VeraCrypt’s source code)
+
+Download code from https://github.com/veracrypt/VeraCrypt
+
+Search for bootloader, finding:
+
+```
+BOOT_LOADER_FINGERPRINT_CHECK_FAILED WARNING: The verification of VeraCrypt bootloader fingerprint failed!\nYour disk may have been tampered with by an attacker ("Evil Maid" attack).\n\nThis warning can also be triggered if you restored VeraCrypt boot loader using an Rescue Disk generated using a different VeraCrypt version.\n\nYou are advised to change your password immediately which will also restore the correct VeraCrypt bootloader. It is recommended to reinstall VeraCrypt and to take measures to avoid access to this machine by untrusted entities.
+```
+
+And file `src/Common/BootEncryption.h`, with functions such as:
+
+```
+271:		void GetInstalledBootLoaderFingerprint (byte fingerprint[WHIRLPOOL_DIGESTSIZE + SHA512_DIGESTSIZE]);
+273:		bool IsBootLoaderOnDrive (wchar_t *devicePath);
+274-		BootEncryptionStatus GetStatus ();
+278:		void InstallBootLoader (...);
+279:		void InstallBootLoader (...);
+280:		bool CheckBootloaderFingerprint (...);
+```
+
+
+
+Looking at the main function in src/Mount/Mount.c:
+
+```C++
+InitMainDialog (hwndDlg);
+
+try
+{
+  if (IsHiddenOSRunning())
+  {
+    uint32 driverConfig = ReadDriverConfigurationFlags();
+    if (BootEncObj->GetInstalledBootLoaderVersion() != VERSION_NUM)
+      Warning ("UPDATE_TC_IN_HIDDEN_OS_TOO", hwndDlg);
+    if (  !(driverConfig & TC_DRIVER_CONFIG_DISABLE_EVIL_MAID_ATTACK_DETECTION)
+      &&  !BootEncObj->CheckBootloaderFingerprint ())
+      Warning ("BOOT_LOADER_FINGERPRINT_CHECK_FAILED", hwndDlg);
+  }
+  else if (SysDriveOrPartitionFullyEncrypted (TRUE))
+  {
+    uint32 driverConfig = ReadDriverConfigurationFlags();
+    if (BootEncObj->GetInstalledBootLoaderVersion() != VERSION_NUM)
+    {
+      Warning ("BOOT_LOADER_VERSION_DIFFERENT_FROM_DRIVER_VERSION", hwndDlg);
+    }
+    if (  !(driverConfig & TC_DRIVER_CONFIG_DISABLE_EVIL_MAID_ATTACK_DETECTION)
+      &&  !BootEncObj->CheckBootloaderFingerprint ())
+      Warning ("BOOT_LOADER_FINGERPRINT_CHECK_FAILED", hwndDlg);
+  }
+}
+```
+
+We can see that CheckBootloaderFingerprint is called specifically to deal with the EVIL_MAID attack.
+
+Inside the function CheckBootloaderFingerprint:
+
+```c++
+bool BootEncryption::CheckBootloaderFingerprint (bool bSilent)
+{
+  SystemDriveConfiguration config = GetSystemDriveConfiguration();
+
+  // return true for now when EFI system encryption is used until we implement
+  // a dedicated EFI fingerprinting mechanism in VeraCrypt driver
+  if (config.SystemPartition.IsGPT)
+    return true;
+
+  byte bootLoaderBuf[TC_BOOT_LOADER_AREA_SIZE - TC_BOOT_ENCRYPTION_VOLUME_HEADER_SIZE];
+  byte fingerprint[WHIRLPOOL_DIGESTSIZE + SHA512_DIGESTSIZE];
+  byte expectedFingerprint[WHIRLPOOL_DIGESTSIZE + SHA512_DIGESTSIZE];
+  bool bRet = false;
+
+  try
+  {
+    // read bootloader fingerprint
+    GetInstalledBootLoaderFingerprint (fingerprint);
+
+    // compute expected fingerprint
+    CreateBootLoaderInMemory (bootLoaderBuf, sizeof (bootLoaderBuf), false, false);
+    ::ComputeBootloaderFingerprint (bootLoaderBuf, sizeof (bootLoaderBuf), expectedFingerprint);
+
+    // compare values
+    if (0 == memcmp (fingerprint, expectedFingerprint, sizeof (expectedFingerprint)))
+    {
+      bRet = true;
+    }
+  }
+```
+
+
+
+The current fingerprint is extracted by the GetInstalledBootLoaderFingerprint function. Then the bootloader is generated on the fly. In the end the fingerprint of the two bootloaders is compared. The idea is that the code to generate the bootloader is also encrypted. VeraCrypt encrypts every sector with a different key. Those different  keys are derived from one master key. The master key itself is stored in the volume, protected by the volume password (and/or key files).
+
