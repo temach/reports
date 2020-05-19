@@ -557,6 +557,41 @@ The result is as below:
 
 There are zero tags and zero reports. Tagging uses a different mechanism from Fields.
 
+Tagging is described in the User Guide: https://plaso.readthedocs.io/en/latest/sources/user/Analysis-plugin-tagging.html
+
+But briefly plaso defines a concept called an analysis plugin. Anyone can can write a plugin that gets a copy of every event that is parsed from hard drive image. This information can be used to create tags and attach them back to the events or to create reports.
+
+All psort analysers that create tags:
+
+```
+******************************* Analysis Plugins *******************************
+                  Name : Description
+--------------------------------------------------------------------------------
+        browser_search : Analyze browser search entries from events.
+                         [Summary/Report plugin]
+      chrome_extension : Convert Chrome extension IDs into names, requires
+                         Internet connection. [Summary/Report plugin]
+           file_hashes : A plugin for generating a list of file paths and
+                         corresponding hashes. [Summary/Report plugin]
+               nsrlsvr : Analysis plugin for looking up hashes in nsrlsvr.
+                         [Summary/Report plugin]
+            sessionize : Analysis plugin that labels events by session.
+                         [Summary/Report plugin]
+               tagging : Analysis plugin that tags events according to rules
+                         in a tagging file. [Summary/Report plugin]
+unique_domains_visited : A plugin to generate a list all domains visited.
+                         [Summary/Report plugin]
+                 viper : An analysis plugin for looking up SHA256 hashes in
+                         Viper. [Summary/Report plugin]
+            virustotal : An analysis plugin for looking up hashes in
+                         VirusTotal. [Summary/Report plugin]
+      windows_services : Provides a single list of for Windows services found
+                         in the Registry. [Summary/Report plugin]
+--------------------------------------------------------------------------------
+```
+
+source: https://plaso.readthedocs.io/en/latest/sources/user/Using-psort.html#automatic-analysis
+
 
 
 #### d. How can Timesketch API be used to export filtered data into another tool for further analysis (or scripted analysis).
@@ -648,7 +683,7 @@ Analyzers for linux browser history. Plazo does not collect info well. Timesketc
 
 ![Selection_087](CCF-Project-plaso-and-timesketch.assets/Selection_087.png)
 
-
+Plug in that would search for encrypted volumes based on standard distribution of bytes within a file: https://github.com/antagon/TCHunt-ng
 
 #### b. What views/graphs are missing.
 
@@ -662,13 +697,16 @@ The events have a default field of datetime and timestamp, however it would be u
 
 The view displays events in batches of 500, and keeps in memory array of 10000 events, however if there are more than that events collected the you will not be able to traverse all events from start to end and will have to filter by datetime. Related issue: https://github.com/google/timesketch/issues/921
 
-
-
-Importing is indeed extremely slow, for volumes over 5GB, I suspect that analysing something like a 1TB is probably impossible with the current approaches. https://github.com/log2timeline/plaso/issues/2501
+Importing is quite slow for volumes over 5GB, I suspect that analysing something like a 100GB is probably impossible with the current approach. Related issue: https://github.com/log2timeline/plaso/issues/2501
 
 Another way to approach the problem of analysing large volumes is filtering data at the time of collection. I.e. extracting only registry keys with log2timeline or extracting only browser history and analysing them separately.
 
+Plaso and Timesketch currently are not able to interact when running in docker containers.  A possible alternative is to try uploading the output of log2timeline (a .plaso file) directly to timesketch via GUI, however there are also a number of gotchas: 
 
+- https://github.com/google/timesketch/blob/master/docs/EnablePlasoUpload.md
+- https://github.com/google/timesketch/issues/880
+
+ And when uploading manually the psort capabilities are not utilized
 
 ### 3. What can be done to fix some of the limitations in the time scope of this CCF project.
 
@@ -683,10 +721,6 @@ The docker compose script for running Timesketch was broken, I investigated the 
 
 
 Integration of Plaso with Timesketch when running them as containers was not possible. The instructions were to install both of them on the host directly (then they could be integrated). During the course of this project a workaround was devised that allows to integrate Plaso with Timesketch while the applications remain containerized. Source:  https://github.com/temach/timesketch/tree/integrate-plaso
-
-
-
-ADD PLUGING TO SEARCH FOR POSSIBLY ENCRYPTED DATA!!! (random data) see https://github.com/antagon/TCHunt-ng
 
 
 
