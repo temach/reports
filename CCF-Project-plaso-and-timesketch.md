@@ -683,7 +683,7 @@ Analyzers for linux browser history. Plazo does not collect info well. Timesketc
 
 ![Selection_087](CCF-Project-plaso-and-timesketch.assets/Selection_087.png)
 
-Plug in that would search for encrypted volumes based on standard distribution of bytes within a file: https://github.com/antagon/TCHunt-ng
+Plug in that would search for encrypted volumes based on standard distribution of bytes within a file: https://github.com/antagon/TCHunt-ng. Currently there is a limited version of this in the plazo entropy analyser: https://plaso.readthedocs.io/en/latest/sources/api/plaso.analyzers.hashers.html#module-plaso.analyzers.hashers.entropy 
 
 #### b. What views/graphs are missing.
 
@@ -710,17 +710,13 @@ Plaso and Timesketch currently are not able to interact when running in docker c
 
 ### 3. What can be done to fix some of the limitations in the time scope of this CCF project.
 
-#### a. Writing a new plugin/filter.
+#### Actually contributing bug fixes to the Timesketch repository.
 
-#### b. Writing an external python script that would use the Timesketch API to provide desired functionality.
-
-#### c. Actually contributing bug fixes to the Timesketch repository.
+Integration of Plaso with Timesketch when running them as containers was not possible. The instructions were to install both of them on the host directly (then they could be integrated). During the course of this project a workaround was devised that allows to integrate Plaso with Timesketch while the applications remain containerized. Source:  https://github.com/temach/timesketch/tree/integrate-plaso
 
 The docker compose script for running Timesketch was broken, I investigated the issue and submitted a pull request upstream.  Source: https://github.com/google/timesketch/pull/1195
 
 
-
-Integration of Plaso with Timesketch when running them as containers was not possible. The instructions were to install both of them on the host directly (then they could be integrated). During the course of this project a workaround was devised that allows to integrate Plaso with Timesketch while the applications remain containerized. Source:  https://github.com/temach/timesketch/tree/integrate-plaso
 
 
 
