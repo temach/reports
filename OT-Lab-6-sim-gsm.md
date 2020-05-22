@@ -1,4 +1,4 @@
-# OT Lab 6 Sim and GSM
+# OT Lab 6 GSM and SIM reader
 
 Artem Abramov
 
@@ -47,9 +47,37 @@ Presentation FakeBTS:
 https://www.youtube.com/watch?v=fQSu9cBaojc
 Interesting takeaway: 3G is more secure, but attacker can jam the 3G frequencies and phone will fallback to 2G (which happily connects to base stations with A5/0 encryption, that is NOT encrypted at all).
 
+
+
+GSM authentication is composed of three functions:
+
+- A3 - function that authenticates.
+- A8 - function for symmetric encryption key generation (outputs Kc that is used in function A5).
+- A5 - function that performs encryption using Kc key.
+
+ 
+
+![Selection_126](OT-Lab-6-sim-gsm.assets/Selection_126.png)
+
+Many implementations of A5 algorithm:
+
+- A5/0 - the non-encrypted version (plaintext).
+- A5/1 - used  in  both  Europe,  and  the US, and is the strongest of the three.
+- A5/2 - is a deliberate weakening of the A5/1 algorithm, used in certain export regions (cryptography is a military weapon in USA), such as Asia.
+
+The A5 is a stream cypher with its own flaws.
+
+sources:
+
+- https://eprints.bournemouth.ac.uk/29835/1/WPC_paper1.pdf
+- https://web.archive.org/web/20080831211629/https://cryptome.org/a51-bsw.htm
+- https://web.archive.org/web/20181008224515/www.scard.org/gsm/a51.html
+
+
+
 ### Overview of SIM card cloning
 
-Below is an extract from the book "Investigating the Cyber Breach: The Digital Forensics Guide for the Network Engineer" by  Joseph Muniz and Aamir Lakhan (Published in 2018)
+Below is an extract from the book "Investigating the Cyber Breach: The Digital Forensics Guide for the Network Engineer" by  Joseph Muniz and Aamir Lakhan (Published in 2018). 
 
 ========  8< ======
 
@@ -75,12 +103,18 @@ Now let's separate some fact from fiction. How long does it actually take to clo
 
 ### COMP128 Algorithm
 
-Regarding the COMP128v1 algorithm, its compression function is vulnerable because it lacks diffusion. This allows for a "narrow pipe attack" which takes around 131,000 challenge-response pairs to recover Ki form a GSM SIM. 
+COMP128 algorithm (was initially a completely private) implementation of the A3 and A8 functions and is used to generate 32-bit signed response SRES and 64-bit cipher key Kc for use in A5 encryption function. 
+
+It is not the only algorithm that fulfills the A3 and A8 functions, but its the overwhelming majority.
+
+Regarding the COMP128v1 algorithm, research showed that its "compression function is vulnerable because it lacks sufficient diffusion". This allows for a "narrow pipe attack" which takes around 131,000 challenge-response pairs to recover Ki form a GSM SIM. 
 
 sources: 
 
 - http://www.isaac.cs.berkeley.edu/isaac/gsm.html
-- https://eprint.iacr.org/2013/224.pdf
+- https://eprint.iacr.org/2013/224.pdf 
+
+Example implementation of COMP128v1: 
 
 The variations of this algorithm known as COMP128v2 and COMP128v3 (released about 4-5 years later) protect against this vulnerability, but are known to be vulnerable to side-channel attacks. These do not appear to have been published, but have apparently been reversed engineered from SIM compliance testing software (and implemented in OsmocomBB). 
 
@@ -257,9 +291,9 @@ Authentication process:
 
 source: https://en.wikipedia.org/wiki/SIM_card#Authentication_key_.28Ki.29
 
-### Testing the "Narrow Pipe Attack" on my SIM
+### Using the SIM Reader
 
-Wen through the trouble to Install Windows 7 to get the software to run. Windows 10 did not work. These applications were written in the Windows XP era.
+Initial plan was to run windows in virtual box and forward the usb peripheral. The applications to interact with the sim reader seemed to only support windows. 
 
 For reference this is how to insert the sim into reader (photo from the internet):
 
@@ -272,6 +306,10 @@ Checking with VirusTotal claimed that it was clean:
 ![Selection_098](OT-Lab-6-sim-gsm.assets/Selection_098.png)
 
 
+
+Initally I tried using windows 10. However the software did not run properly. Any sort of software targeting Ki cracking via narrow pipe attack, must have been written at the time of COMP128v1 popularity i.e. Windows XP era. No wonder it did not run on Windows 10. 
+
+Before trying windows XP I decided to try Windows 7. Install it and download the same MagicSim program.
 
 Copy file to the VM and run the installer. Wow very flashy:
 
@@ -348,9 +386,7 @@ So I was expecting to see the byte sequence (source: http://ludovic.rousseau.fre
 
 But it was not generated. Perhaps the reader was not resetting the card properly? 
 
-With the USB reader I had a CD that contained software. Because it was still not working, I decided to give a try to the software on the CD. Asked a friend who had a CD reader to extract the disk contents. They are available at the following link:  https://yadi.sk/d/khioUKcKweNtBA
-
-
+With the USB reader came a CD that contained some software. Because the other methods were not working it was time to try to the software on the CD. Finding a CD reader was also not easy, however Gaspar had one and provided it to me. The extracted disk contents are available at the following link:  https://yadi.sk/d/khioUKcKweNtBA
 
 Contents:
 
@@ -366,24 +402,47 @@ drwxrwxr-x 2 artem artem 4096 мар 26  2014 'USB SIM Editer'
 
 One thing that concerned me was that ART info is supposed to be set on card reset, this could mean that there is a special command to reset the card, however what if this info was only printed on card boot i.e. when it got powered on? I was trying this in a virtual box Windows 7, but maybe it was not handling usb on/off properly?
 
-So I went through the trouble to actually install windows 7 on the harddrive. Refere to https://askubuntu.com/questions/197868/grub-does-not-detect-windows to solve UEFI/MBR issues (windows 7 has them).
+So perhaps if windows 7 was directly installed on the bare metal, it would work. Refer to  https://askubuntu.com/questions/197868/grub-does-not-detect-windows to solve UEFI/MBR issues (windows 7 has them).
 
-Then I installed  the software from the CD and the PL-2303 driver separately (from the lenovo link given above). 
+Then install  the software from the CD and the PL-2303 driver separately (from the lenovo link given above). 
 
-I tried at least 5 different setups to install windows XP or windows 7, but first every installation attempt took around 2 hours, second many of them did not work out (i.e. installing windows 7 as UEFI). I spend the whole day on this search. Eventually I simply ran out of time.
+Luckily there was a 32-bit laptop that was not used which I could scavenge for the lab. Unfortunately it took at least 4 attempts with each try of about 2 hours to get the right combination to actually install Windows 7. Spend the whole day on this search.
 
 ![Selection_108](OT-Lab-6-sim-gsm.assets/Selection_108.jpg)
 
+
+
+Eventually win7 was installed and software running:
+
+![photo_2020-05-22_22-25-33](OT-Lab-6-sim-gsm.assets/photo_2020-05-22_22-25-33.jpg)
+
+
+
+I could connect to the SIM reader and get my contacts from MTS sim card (Cyrillic script had some problems with displaying correctly):
+
+![photo_2020-05-22_22-26-50](OT-Lab-6-sim-gsm.assets/photo_2020-05-22_22-26-50.jpg)
+
+
+
+The sim reader also had limited functionality to read other memory areas.
+
+The next step was running the scanner application, getting my ATR finally and trying the narrow pipe attack:
+
+![photo_2020-05-22_22-06-36](OT-Lab-6-sim-gsm.assets/photo_2020-05-22_22-06-36.jpg)
+
+
+
+However, trying to attack the card was not successful:
+
+![photo_2020-05-22_22-06-44](OT-Lab-6-sim-gsm.assets/photo_2020-05-22_22-06-44.jpg)
+
+
+
 ### Conclusion
 
-It did not work.
+The sim reader works. During the last day I gave it to Ali, because his sim reader broke. Perhaps there was more regions that the sim reader could extract (by the way writing was also possible, best to test it on a temporary SIM card bought for this lab).
 
-Two last possibilities were:
-
-- Faulty hardware
-- SIM misplacement (I did not have the right form-factor sim, reader is made for micro-SIMs, I only had nano-SIM). Although I am 99% sure I placed it correctly.
-
-Or perhaps something else :(
+The attack took much longer to run than expected and did not produce the Ki. In retrospect this is to be expected, because modern SIM cards provide better security mechanisms. (see below section on 3G/4G). They contain not just Ki, but tweak values OPc and operator defined constants r1 through r5 and c1 through c5. Only knowing all of the its possible to get master access to the SIM. During the connection to GSM, the modern SIM uses just the master key K to authenticate, even if that was somehow intercepted and cracked, absence of the other secrets would still block us from cloning the SIM card.
 
 
 
@@ -392,7 +451,8 @@ Or perhaps something else :(
 ### MILENAGE Algorithm
 
 USIM cards implement the AES-128-based MILENAGE algorithm used in 3G/4G communications.
-They can be cloned, but with special equipment, the idea of the attack is that crypto system is more than only maths, it is also a hardware implementation that can leak extra data: power consumption, electro-magnetic waves, etc.
+
+They can be cloned! But with special equipment. The attack is a side channel attack. The main idea is that crypto system is more than only maths, it is also a hardware implementation that can leak extra data: power consumption, electro-magnetic waves, etc.
 
 The new algorithm uses more secrets than just a single master key:
 
@@ -400,8 +460,24 @@ The new algorithm uses more secrets than just a single master key:
 
 
 
+Successful attack can be see in the youtube video link below.
+
 sources: 
 -	https://www.blackhat.com/docs/us-15/materials/us-15-Yu-Cloning-3G-4G-SIM-Cards-With-A-PC-And-An-Oscilloscope-Lessons-Learned-In-Physical-Security-wp.pdf
 -	https://www.youtube.com/watch?v=qKCQ1KL9GEc
 
 
+
+### Downgrading 3G/4G connection to 2G
+
+The vector of attack that stands out the most is if we can just downgrade the 3G connection to 2G and exploit the known vulnerabilities. For example my phone supports 4G and has a modern SIM card, however it also supports a "GSM only" mode, as shown below:
+
+![photo_2020-05-22_23-36-00](OT-Lab-6-sim-gsm.assets/photo_2020-05-22_23-36-00.jpg)
+
+
+
+The big question is: Does this make my phone vulnerable to the GSM attacks, and to what extent?
+
+Below is a paper, discussing the security flaws brought about by integrating the old GSM protocols into the  new  systems.
+
+https://infonomics-society.org/wp-content/uploads/ijisr/published-papers/volume-3-2013/Securing-USIM-based-Mobile-Communications-from-Interoperation-of-SIMbased-Communications.pdf
