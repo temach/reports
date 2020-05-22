@@ -370,6 +370,10 @@ So I went through the trouble to actually install windows 7 on the harddrive. Re
 
 Then I installed  the software from the CD and the PL-2303 driver separately (from the lenovo link given above). 
 
+I tried at least 5 different setups to install windows XP or windows 7, but first every installation attempt took around 2 hours, second many of them did not work out (i.e. installing windows 7 as UEFI). I spend the whole day on this search. Eventually I simply ran out of time.
+
+![Selection_108](OT-Lab-6-sim-gsm.assets/Selection_108.png)
+
 ### Conclusion
 
 It did not work.
