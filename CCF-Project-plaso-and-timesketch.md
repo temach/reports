@@ -4,6 +4,8 @@
 
 Artem Abramov
 
+Google slides presentation: https://docs.google.com/presentation/d/1dpiOhXXPbIJgB4sSuhQXgrq8axgThbNG84MkE5bDyoQ/edit?usp=sharing
+
 This project focuses on using two open-source projects focused on forensics for analysing Linux systems:
 
 - Plaso (https://github.com/log2timeline/plaso) - tool to collect and categorise
@@ -205,7 +207,7 @@ json_line : Saves the events into a JSON line format.
      xlsx : Excel Spreadsheet (XLSX) output
 --------------------------------------------------------------------------------
 
-*************************** Disabled Output Modules ****************************
+*************************** Disabled Output Modules ***************************
       Name : Description
 --------------------------------------------------------------------------------
 timesketch : Create a Timesketch timeline.
@@ -594,6 +596,46 @@ source: https://plaso.readthedocs.io/en/latest/sources/user/Using-psort.html#aut
 
 
 
+For example running the file_hashes analyser (on a folder with two files inside):
+
+```
+# plaso-switch.sh psort --analysis file_hashes -o rawpy -w /data/timeline-filehashes.rawpy /data/evidence-filehashes.plaso
+```
+
+Output:
+
+```
+plaso - psort version 20200430
+
+Storage file		: /data/evidence-tchuntng.plaso
+Processing time		: 00:00:00
+
+Events:         Filtered        In time slice   Duplicates      MACB grouped    Total
+                0               0               0               9               9
+
+Identifier              PID     Status          Memory          Events          Tags            Reports
+Main                    2276    exporting       96.9 MiB        9 (9)           0 (0)           0 (0)
+
+Processing completed.
+
+************************** Analysis reports generated **************************
+file_hashes : 1
+      Total : 1
+--------------------------------------------------------------------------------
+
+****************************** Analysis report: 1 ******************************
+String : Report generated from: file_hashes Generated on:
+         2020-05-23T18:49:23.000000Z Report text: Listing file paths and hashes
+         OS:/data/evidence/home/test:
+         OS:/data/evidence/home/test/gpg_secretkey.asc:
+         sha256_hash=ae908b04136f82f248c70cf24b79607a4e64bc22adb58d10105164786e76743b
+         OS:/data/evidence/home/test/message.txt.gpg:
+         sha256_hash=a5ba89d7044c43e19e9ab3ff01244c5bc996327db691d66f612362ce7a70c061
+--------------------------------------------------------------------------------
+```
+
+
+
 #### d. How can Timesketch API be used to export filtered data into another tool for further analysis (or scripted analysis).
 
 source: https://dfir.blog/solving-magnet-forensics-ctf-with-plaso-timesketch-colab/
@@ -710,13 +752,167 @@ Plaso and Timesketch currently are not able to interact when running in docker c
 
 ### 3. What can be done to fix some of the limitations in the time scope of this CCF project.
 
+#### Writing a filter/plugin
+
+I wrote a plugin for plaso (specifically for psort), that aims to find all encrypted files on the disk image and produces a summary report at the end. This can be useful when just starting out the forensic investigation and looking for first clues. 
+
+Below is the source code of the plugin:
+
+```python
+# -*- coding: utf-8 -*-
+"""A plugin that reveals encrypted files on the filessystem."""
+
+from __future__ import unicode_literals
+
+import re
+
+import requests
+
+from plaso.analysis import interface
+from plaso.analysis import logger
+from plaso.analysis import manager
+from plaso.containers import reports
+import subprocess
+
+class TchuntngPlugin(interface.AnalysisPlugin):
+  """Find encrypted files, requires TCHunt-ng installed."""
+
+  NAME = 'tchuntng'
+
+  # Indicate that we can run this plugin during regular extraction.
+  ENABLE_IN_EXTRACTION = True
+
+  _SUPPORTED_EVENT_DATA_TYPES = frozenset([
+      'fs:stat'])
+
+  def __init__(self):
+    """Initializes the TCHunt-ng analysis plugin."""
+    super(TchuntngPlugin, self).__init__()
+
+    self._cache = {}
+    self._results = {}
+
+  def CompileReport(self, mediator):
+    """Compiles an analysis report.
+
+    Args:
+      mediator (AnalysisMediator): mediates interactions between analysis
+          plugins and other components, such as storage and dfvfs.
+
+    Returns:
+      AnalysisReport: analysis report.
+    """
+    lines_of_text = []
+    for user, filepaths in sorted(self._results.items()):
+      lines_of_text.append(' == USER: {0:s} =='.format(user))
+      for path in sorted(filepaths):
+        lines_of_text.append('  {}'.format(path))
+      lines_of_text.append('')
+
+    lines_of_text.append('')
+    report_text = '\n'.join(lines_of_text)
+    analysis_report = reports.AnalysisReport(plugin_name=self.NAME, text=report_text)
+    analysis_report.report_dict = self._results
+    return analysis_report
+
+  # pylint: disable=unused-argument
+  def ExamineEvent(self, mediator, event, event_data):
+    """Analyzes an event.
+
+    Args:
+      mediator (AnalysisMediator): mediates interactions between analysis
+          plugins and other components, such as storage and dfvfs.
+      event (EventObject): event to examine.
+      event_data (EventData): event data.
+    """
+    if event_data.data_type not in self._SUPPORTED_EVENT_DATA_TYPES:
+      return
+
+    filename = getattr(event_data, 'filename', None)
+    if not filename:
+      return
+    
+    if filename in self._cache:
+      return
+    else:
+      self._cache[filename] = True
+
+    user = mediator.GetUsernameForPath(filename)
+
+    # We still want this information in here, so that we can
+    # manually deduce the username.
+    if not user:
+      user = "Not found"
+
+    completed = subprocess.run("tchuntng {}".format(filename), shell=True)
+    if completed.returncode == 0:
+      # this is encrypted
+      self._results.setdefault(user, [])
+      if filename not in self._results[user]:
+        self._results[user].append(filename)
+
+manager.AnalysisPluginManager.RegisterPlugin(TchuntngPlugin)
+```
+
+
+
+To use the plugin, collect data with log2timeline:
+
+```
+plaso-switch.sh log2timeline /data/evidence-tchuntng.plaso /data/evidence/home/test
+```
+
+Run psort and pass tchuntng as the analyser:
+
+```
+plaso-switch.sh psort --analysis tchuntng -o rawpy -w /data/timeline-tchuntng.rawpy /data/evidence-tchuntng.plaso
+```
+
+You can also pass the data to timesketch:
+
+```
+plaso-switch.sh psort --analysis tchuntng -o timesketch /data/evidence-tchuntng.plaso
+```
+
+
+
+Sample output:
+
+```
+plaso - psort version 20200430
+
+Storage file		: /data/evidence-tchuntng.plaso
+Processing time		: 00:00:00
+
+Events:         Filtered        In time slice   Duplicates      MACB grouped    Total
+                0               0               0               9               9
+
+Identifier              PID     Status          Memory          Events          Tags            Reports
+Main                    2254    exporting       97.3 MiB        9 (9)           0 (0)           0 (0)
+
+Processing completed.
+
+************************** Analysis reports generated **************************
+tchuntng : 1
+   Total : 1
+--------------------------------------------------------------------------------
+
+****************************** Analysis report: 0 ******************************
+String : Report generated from: tchuntng Generated on:
+         2020-05-23T18:44:43.000000Z Report text: == USER: Not found ==
+         /data/evidence/home/test/message.txt.gpg
+--------------------------------------------------------------------------------
+```
+
+So the plugin identified the file /data/evidence/home/test/message.txt.gpg as encrypted, which is correct, but did not identify the other file gpg_secretkey.asc as encrypted, which is also correct.
+
+Below is the Dockerfile that builds Timesketch with Plaso and with 
+
 #### Actually contributing bug fixes to the Timesketch repository.
 
-Integration of Plaso with Timesketch when running them as containers was not possible. The instructions were to install both of them on the host directly (then they could be integrated). During the course of this project a workaround was devised that allows to integrate Plaso with Timesketch while the applications remain containerized. Source:  https://github.com/temach/timesketch/tree/integrate-plaso
+Integration of Plaso with Timesketch when running them as containers was not possible. The instructions were to install both of them on the host directly (then they could be integrated). During the course of this project a workaround was devised that allows to integrate Plaso with Timesketch while the applications remain containerized. Source code:  https://github.com/temach/timesketch/tree/integrate-plaso
 
 The docker compose script for running Timesketch was broken, I investigated the issue and submitted a pull request upstream.  Source: https://github.com/google/timesketch/pull/1195
-
-
 
 
 
